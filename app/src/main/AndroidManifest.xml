@@ -8,6 +8,9 @@
     <!-- Internet permissions -->
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
+    <!-- Vibration feedback -->
+    <uses-permission android:name="android.permission.VIBRATE" />
+
     <!-- NFC feature requirement -->
     <uses-feature
         android:name="android.hardware.nfc"

@@ -21,6 +21,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
@@ -32,6 +35,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.yumedev.taptopayandroid.R
 import com.yumedev.taptopayandroid.domain.model.EmvCardData
 import com.yumedev.taptopayandroid.domain.model.NfcState
+import com.yumedev.taptopayandroid.presentation.util.HapticHelper
 import com.yumedev.taptopayandroid.presentation.viewmodel.TapToPayViewModel
 
 @Composable
@@ -45,6 +49,8 @@ fun TapToPayScreen(
 ) {
     val nfcState by viewModel.nfcState.collectAsState()
     val terminalConfig by viewModel.terminalConfig.collectAsState()
+    val context = LocalContext.current
+    val hapticFeedback = LocalHapticFeedback.current
 
     LaunchedEffect(Unit) {
         viewModel.startNewTransaction(amount)
@@ -54,7 +60,11 @@ fun TapToPayScreen(
     LaunchedEffect(nfcState) {
         when (nfcState) {
             is NfcState.Success -> {
+                HapticHelper.playSuccessVibration(context, hapticFeedback)
                 onSuccess((nfcState as NfcState.Success).emvCardData)
+            }
+            is NfcState.SeePhone -> {
+                hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
             }
             is NfcState.Error -> {
                 onError((nfcState as NfcState.Error).message)

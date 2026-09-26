@@ -1,6 +1,12 @@
 package com.yumedev.taptopayandroid.presentation.ui.screens
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -12,17 +18,25 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.yumedev.taptopayandroid.domain.model.*
+import com.yumedev.taptopayandroid.presentation.util.HapticHelper
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -41,6 +55,105 @@ fun SuccessScreen(
     val analysis = emvCardData.transactionAnalysis
     val config = terminalConfig ?: TerminalConfig()
     val scrollState = rememberScrollState()
+    val context = LocalContext.current
+    val hapticFeedback = LocalHapticFeedback.current
+
+    // ─── Animation States ───
+    val iconScale = remember { Animatable(0.25f) }
+    val iconAlpha = remember { Animatable(0f) }
+    val rippleScale = remember { Animatable(0.7f) }
+    val rippleAlpha = remember { Animatable(0.75f) }
+
+    val bannerAlpha = remember { Animatable(0f) }
+    val bannerSlide = remember { Animatable(-18f) }
+
+    val amountAlpha = remember { Animatable(0f) }
+    val amountSlide = remember { Animatable(24f) }
+
+    val receiptAlpha = remember { Animatable(0f) }
+    val receiptSlide = remember { Animatable(32f) }
+
+    val actionsAlpha = remember { Animatable(0f) }
+    val actionsSlide = remember { Animatable(20f) }
+
+    LaunchedEffect(Unit) {
+        // Trigger subtle double-pulse tactile vibration feedback
+        HapticHelper.playSuccessVibration(context, hapticFeedback)
+
+        // Banner and Icon pop
+        launch { bannerAlpha.animateTo(1f, tween(200)) }
+        launch {
+            bannerSlide.animateTo(
+                0f,
+                spring(
+                    dampingRatio = Spring.DampingRatioLowBouncy,
+                    stiffness = Spring.StiffnessMediumLow
+                )
+            )
+        }
+        launch { iconAlpha.animateTo(1f, tween(150)) }
+        launch {
+            iconScale.animateTo(
+                1f,
+                spring(
+                    dampingRatio = Spring.DampingRatioMediumBouncy,
+                    stiffness = Spring.StiffnessMediumLow
+                )
+            )
+        }
+
+        // Bloom ripple wave behind the icon
+        launch {
+            delay(100)
+            launch { rippleScale.animateTo(1.7f, tween(650, easing = FastOutSlowInEasing)) }
+            launch { rippleAlpha.animateTo(0f, tween(650, easing = LinearEasing)) }
+        }
+
+        // Amount card entrance
+        launch {
+            delay(120)
+            launch { amountAlpha.animateTo(1f, tween(250)) }
+            launch {
+                amountSlide.animateTo(
+                    0f,
+                    spring(
+                        dampingRatio = Spring.DampingRatioLowBouncy,
+                        stiffness = Spring.StiffnessMediumLow
+                    )
+                )
+            }
+        }
+
+        // Receipt slip entrance (paper slide-out feel)
+        launch {
+            delay(200)
+            launch { receiptAlpha.animateTo(1f, tween(300)) }
+            launch {
+                receiptSlide.animateTo(
+                    0f,
+                    spring(
+                        dampingRatio = Spring.DampingRatioLowBouncy,
+                        stiffness = Spring.StiffnessMediumLow
+                    )
+                )
+            }
+        }
+
+        // Bottom actions entrance
+        launch {
+            delay(300)
+            launch { actionsAlpha.animateTo(1f, tween(250)) }
+            launch {
+                actionsSlide.animateTo(
+                    0f,
+                    spring(
+                        dampingRatio = Spring.DampingRatioLowBouncy,
+                        stiffness = Spring.StiffnessMediumLow
+                    )
+                )
+            }
+        }
+    }
 
     // Determine POS theme colors based on transaction decision
     val (statusBgColor, statusContentColor, statusTitle, statusSubtitle, statusIcon) = when (analysis.decision) {
@@ -124,21 +237,8 @@ fun SuccessScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Contactless 4-LED Indicator
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        val ledColor = if (analysis.isDeclined) Color(0xFFE53935) else Color(0xFF00E676)
-                        repeat(4) {
-                            Box(
-                                modifier = Modifier
-                                    .size(10.dp)
-                                    .clip(CircleShape)
-                                    .background(ledColor)
-                            )
-                        }
-                    }
+                    // Contactless 4-LED Animated Indicator
+                    PosAnimatedLedIndicator(isDeclined = analysis.isDeclined)
 
                     Text(
                         text = "EMV CONTACTLESS POS",
@@ -152,7 +252,12 @@ fun SuccessScreen(
 
             // ─── 2. POS Hero Status Banner ───
             Surface(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .graphicsLayer {
+                        alpha = bannerAlpha.value
+                        translationY = bannerSlide.value
+                    },
                 shape = RoundedCornerShape(16.dp),
                 color = statusBgColor,
                 shadowElevation = 4.dp
@@ -163,12 +268,46 @@ fun SuccessScreen(
                         .padding(20.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Icon(
-                        imageVector = statusIcon,
-                        contentDescription = null,
-                        modifier = Modifier.size(48.dp),
-                        tint = statusContentColor
-                    )
+                    Box(
+                        contentAlignment = Alignment.Center,
+                        modifier = Modifier.size(76.dp)
+                    ) {
+                        // Expanding celebratory ripple/halo wave
+                        if (rippleAlpha.value > 0.01f) {
+                            Box(
+                                modifier = Modifier
+                                    .size(56.dp)
+                                    .graphicsLayer {
+                                        scaleX = rippleScale.value
+                                        scaleY = rippleScale.value
+                                        alpha = rippleAlpha.value
+                                    }
+                                    .clip(CircleShape)
+                                    .background(statusContentColor.copy(alpha = 0.35f))
+                            )
+                        }
+
+                        // Main Status Icon with spring bounce
+                        Box(
+                            modifier = Modifier
+                                .size(56.dp)
+                                .clip(CircleShape)
+                                .background(statusContentColor.copy(alpha = 0.18f))
+                                .graphicsLayer {
+                                    scaleX = iconScale.value
+                                    scaleY = iconScale.value
+                                    alpha = iconAlpha.value
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = statusIcon,
+                                contentDescription = null,
+                                modifier = Modifier.size(36.dp),
+                                tint = statusContentColor
+                            )
+                        }
+                    }
 
                     Spacer(modifier = Modifier.height(10.dp))
 
@@ -195,7 +334,12 @@ fun SuccessScreen(
 
             // ─── 3. Amount Display ───
             Surface(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .graphicsLayer {
+                        alpha = amountAlpha.value
+                        translationY = amountSlide.value
+                    },
                 shape = RoundedCornerShape(14.dp),
                 color = MaterialTheme.colorScheme.surface,
                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
@@ -227,7 +371,12 @@ fun SuccessScreen(
 
             // ─── 4. POS Terminal Transaction Slip (Receipt Style) ───
             Surface(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .graphicsLayer {
+                        alpha = receiptAlpha.value
+                        translationY = receiptSlide.value
+                    },
                 shape = RoundedCornerShape(16.dp),
                 color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
@@ -390,7 +539,12 @@ fun SuccessScreen(
 
         // ─── 5. POS Bottom Controls ───
         Surface(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .graphicsLayer {
+                    alpha = actionsAlpha.value
+                    translationY = actionsSlide.value
+                },
             shadowElevation = 8.dp,
             color = MaterialTheme.colorScheme.surface
         ) {
@@ -450,6 +604,48 @@ fun SuccessScreen(
     }
 }
 
+// ─── Animated Contactless 4-LED Indicator ───
+
+@Composable
+private fun PosAnimatedLedIndicator(isDeclined: Boolean) {
+    val ledColor = if (isDeclined) Color(0xFFE53935) else Color(0xFF00E676)
+    val inactiveColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f)
+
+    // 4 sequential LED animations
+    val led1Alpha = remember { Animatable(0.2f) }
+    val led2Alpha = remember { Animatable(0.2f) }
+    val led3Alpha = remember { Animatable(0.2f) }
+    val led4Alpha = remember { Animatable(0.2f) }
+
+    LaunchedEffect(Unit) {
+        delay(40)
+        led1Alpha.animateTo(1f, tween(80))
+        led2Alpha.animateTo(1f, tween(80))
+        led3Alpha.animateTo(1f, tween(80))
+        led4Alpha.animateTo(1f, tween(80))
+    }
+
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        val leds = listOf(led1Alpha, led2Alpha, led3Alpha, led4Alpha)
+        leds.forEach { anim ->
+            Box(
+                modifier = Modifier
+                    .size(10.dp)
+                    .clip(CircleShape)
+                    .background(if (anim.value > 0.5f) ledColor else inactiveColor)
+                    .graphicsLayer {
+                        alpha = if (anim.value > 0.5f) 1f else 0.35f
+                        scaleX = if (anim.value > 0.5f) 1f else 0.85f
+                        scaleY = if (anim.value > 0.5f) 1f else 0.85f
+                    }
+            )
+        }
+    }
+}
+
 @Composable
 private fun PosReceiptRow(
     label: String,
@@ -487,3 +683,4 @@ private data class PosStatusConfig(
     val subtitle: String,
     val icon: ImageVector
 )
+
