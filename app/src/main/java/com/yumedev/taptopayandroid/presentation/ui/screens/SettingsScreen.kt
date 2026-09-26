@@ -201,11 +201,11 @@ fun SettingsScreen(
         // --- POS Terminal & EMV Transaction Settings Section ---
         item {
             SettingsSection(
-                title = "POS 终端与交易配置 / EMV Terminal"
+                title = "EMV Terminal & Transaction Configuration"
             ) {
                 SettingsItemNavigable(
                     icon = Icons.Outlined.Info,
-                    title = "交易币种 / Currency",
+                    title = "Transaction Currency",
                     subtitle = "Tag 5F2A: ${terminalConfig.currencyDisplayName}",
                     endText = "${terminalConfig.currencySymbol} (${terminalConfig.currencyCode})",
                     onClick = { showCurrencyDialog = true }
@@ -216,7 +216,7 @@ fun SettingsScreen(
                 )
                 SettingsItemNavigable(
                     icon = Icons.Outlined.Info,
-                    title = "终端国家代码 / Country",
+                    title = "Terminal Country Code",
                     subtitle = "Tag 9F1A: ${terminalConfig.countryDisplayName}",
                     endText = terminalConfig.countryCode,
                     onClick = { showCountryDialog = true }
@@ -227,7 +227,7 @@ fun SettingsScreen(
                 )
                 SettingsItemNavigable(
                     icon = Icons.Outlined.Info,
-                    title = "交易类型 / Transaction Type",
+                    title = "Transaction Type",
                     subtitle = "Tag 9C: ${terminalConfig.transactionTypeDisplayName}",
                     endText = terminalConfig.transactionType,
                     onClick = { showTransactionTypeDialog = true }
@@ -238,8 +238,8 @@ fun SettingsScreen(
                 )
                 SettingsItemNavigable(
                     icon = Icons.Outlined.Code,
-                    title = "终端交易限定符 / TTQ",
-                    subtitle = "Tag 9F66: ${terminalConfig.formattedTtq} (点击配置)",
+                    title = "Terminal Transaction Qualifiers (TTQ)",
+                    subtitle = "Tag 9F66: ${terminalConfig.formattedTtq} (Tap to configure)",
                     endText = terminalConfig.formattedTtq,
                     onClick = { showTtqDialog = true }
                 )
@@ -249,8 +249,8 @@ fun SettingsScreen(
                 )
                 SettingsItemNavigable(
                     icon = Icons.Outlined.Splitscreen,
-                    title = "终端能力 / Terminal Capabilities",
-                    subtitle = "Tag 9F33: ${terminalConfig.formattedTerminalCapabilities} · IC/磁条/CVM能力",
+                    title = "Terminal Capabilities",
+                    subtitle = "Tag 9F33: ${terminalConfig.formattedTerminalCapabilities} · Chip / Magstripe / CVM",
                     endText = terminalConfig.formattedTerminalCapabilities,
                     onClick = { showCapabilitiesDialog = true }
                 )
@@ -260,8 +260,8 @@ fun SettingsScreen(
                 )
                 SettingsItemNavigable(
                     icon = Icons.Outlined.PhoneAndroid,
-                    title = "终端类型 / Terminal Type",
-                    subtitle = "Tag 9F35: ${terminalConfig.terminalTypeHex} · 商户联机/离线终端",
+                    title = "Terminal Type",
+                    subtitle = "Tag 9F35: ${terminalConfig.terminalTypeHex} · Merchant terminal profile",
                     endText = terminalConfig.terminalTypeHex,
                     onClick = { showTerminalTypeDialog = true }
                 )
@@ -271,9 +271,9 @@ fun SettingsScreen(
                 )
                 SettingsItemNavigable(
                     icon = Icons.Outlined.Info,
-                    title = "商户与硬件信息 / Merchant & IFD",
+                    title = "Merchant & Hardware IFD",
                     subtitle = "${terminalConfig.merchantName} · MCC: ${terminalConfig.merchantCategoryCode}",
-                    endText = "编辑",
+                    endText = "Edit",
                     onClick = { showMerchantDialog = true }
                 )
                 HorizontalDivider(
@@ -282,10 +282,10 @@ fun SettingsScreen(
                 )
                 SettingsItemNavigable(
                     icon = Icons.Default.Refresh,
-                    title = "恢复默认 POS 参数",
-                    subtitle = "重置为标准 EMV 联机非接终端 (TTQ: 36204000, USD, 消费)",
+                    title = "Reset Terminal Defaults",
+                    subtitle = "Reset to standard EMV contactless terminal (TTQ: 36204000, USD, Purchase)",
                     showChevron = false,
-                    endText = "重置",
+                    endText = "Reset",
                     onClick = { viewModel.resetTerminalConfig() }
                 )
             }

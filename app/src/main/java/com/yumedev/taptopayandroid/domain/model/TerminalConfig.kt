@@ -151,12 +151,12 @@ data class TerminalConfig(
 
         // Preset Transaction Types (Tag 9C)
         val TransactionTypes = listOf(
-            TransactionTypePreset("00", "00 - Purchase / 消费", "Goods and services purchase"),
-            TransactionTypePreset("01", "01 - Cash / 取现", "Cash advance or ATM cash disbursement"),
-            TransactionTypePreset("09", "09 - Cashback / 消费加现金", "Purchase with cashback"),
-            TransactionTypePreset("20", "20 - Refund / 退款", "Return or refund transaction"),
-            TransactionTypePreset("30", "30 - Balance / 余额查询", "Balance inquiry"),
-            TransactionTypePreset("31", "31 - Transfer / 转账", "Account transfer")
+            TransactionTypePreset("00", "00 - Purchase", "Goods and services purchase"),
+            TransactionTypePreset("01", "01 - Cash Advance", "Cash advance or ATM cash disbursement"),
+            TransactionTypePreset("09", "09 - Cashback", "Purchase with cashback"),
+            TransactionTypePreset("20", "20 - Refund", "Return or refund transaction"),
+            TransactionTypePreset("30", "30 - Balance Inquiry", "Balance inquiry"),
+            TransactionTypePreset("31", "31 - Transfer", "Account transfer")
         )
 
         // Preset TTQ configurations (Tag 9F66)
@@ -177,11 +177,11 @@ data class TerminalConfig(
 
         // Preset Terminal Types (Tag 9F35)
         val TerminalTypePresets = listOf(
-            TerminalTypePreset("22", "22 - Attended Online Only (Standard POS / 线下常用商户联机终端)"),
-            TerminalTypePreset("21", "21 - Attended Offline w/ Online (具备联机功能的离线商户终端)"),
-            TerminalTypePreset("23", "23 - Attended Offline Only (纯离线商户终端)"),
-            TerminalTypePreset("14", "14 - Financial Institution Online (金融机构联机终端)"),
-            TerminalTypePreset("35", "35 - Cardholder Mobile POS (持卡人自助/手机移动终端)")
+            TerminalTypePreset("22", "22 - Attended Online Only (Standard POS)"),
+            TerminalTypePreset("21", "21 - Attended Offline w/ Online"),
+            TerminalTypePreset("23", "23 - Attended Offline Only"),
+            TerminalTypePreset("14", "14 - Financial Institution Online"),
+            TerminalTypePreset("35", "35 - Cardholder Mobile POS")
         )
     }
 }

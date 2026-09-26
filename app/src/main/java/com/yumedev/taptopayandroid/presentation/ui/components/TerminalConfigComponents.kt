@@ -47,7 +47,7 @@ fun CurrencySelectionDialog(
         onDismissRequest = onDismiss,
         title = {
             Text(
-                text = "选择交易币种 / Currency",
+                text = "Select Transaction Currency",
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold
             )
@@ -97,7 +97,7 @@ fun CurrencySelectionDialog(
                                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
                                 )
                                 Text(
-                                    text = "Tag 5F2A: ${preset.code} · 符号: ${preset.symbol}",
+                                    text = "Tag 5F2A: ${preset.code} · Symbol: ${preset.symbol}",
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -122,7 +122,7 @@ fun CurrencySelectionDialog(
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                text = "自定义币种代码 / Custom",
+                                text = "Custom Currency Code",
                                 style = MaterialTheme.typography.bodyMedium,
                                 fontWeight = if (isCustom) FontWeight.Bold else FontWeight.Normal
                             )
@@ -133,7 +133,7 @@ fun CurrencySelectionDialog(
                             OutlinedTextField(
                                 value = selectedCode,
                                 onValueChange = { if (it.length <= 4 && it.all { c -> c.isDigit() }) selectedCode = it },
-                                label = { Text("ISO 4217 代码 (如 0840)") },
+                                label = { Text("ISO 4217 Numeric (e.g. 0840)") },
                                 singleLine = true,
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                                 modifier = Modifier.fillMaxWidth()
@@ -142,7 +142,7 @@ fun CurrencySelectionDialog(
                             OutlinedTextField(
                                 value = selectedSymbol,
                                 onValueChange = { selectedSymbol = it },
-                                label = { Text("显示符号 (如 $, ¥, €)") },
+                                label = { Text("Currency Symbol (e.g. $, €, £)") },
                                 singleLine = true,
                                 modifier = Modifier.fillMaxWidth()
                             )
@@ -157,12 +157,12 @@ fun CurrencySelectionDialog(
                     onConfirm(selectedCode.padStart(4, '0'), selectedSymbol, selectedExponent)
                 }
             ) {
-                Text("保存")
+                Text("Save")
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("取消")
+                Text("Cancel")
             }
         }
     )
@@ -186,7 +186,7 @@ fun CountrySelectionDialog(
         onDismissRequest = onDismiss,
         title = {
             Text(
-                text = "选择终端国家代码 / Country (Tag 9F1A)",
+                text = "Select Terminal Country (Tag 9F1A)",
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold
             )
@@ -257,7 +257,7 @@ fun CountrySelectionDialog(
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                text = "自定义国家代码 / Custom Country",
+                                text = "Custom Country Code",
                                 style = MaterialTheme.typography.bodyMedium,
                                 fontWeight = if (isCustom) FontWeight.Bold else FontWeight.Normal
                             )
@@ -268,7 +268,7 @@ fun CountrySelectionDialog(
                             OutlinedTextField(
                                 value = selectedCode,
                                 onValueChange = { if (it.length <= 4 && it.all { c -> c.isDigit() }) selectedCode = it },
-                                label = { Text("ISO 3166-1 数值代码 (如 0840, 0156)") },
+                                label = { Text("ISO 3166-1 Numeric (e.g. 0840, 0156)") },
                                 singleLine = true,
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                                 modifier = Modifier.fillMaxWidth()
@@ -284,12 +284,12 @@ fun CountrySelectionDialog(
                     onConfirm(selectedCode.padStart(4, '0'))
                 }
             ) {
-                Text("保存")
+                Text("Save")
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("取消")
+                Text("Cancel")
             }
         }
     )
@@ -313,7 +313,7 @@ fun TransactionTypeSelectionDialog(
         onDismissRequest = onDismiss,
         title = {
             Text(
-                text = "选择交易类型 / Transaction Type (Tag 9C)",
+                text = "Select Transaction Type (Tag 9C)",
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold
             )
@@ -384,7 +384,7 @@ fun TransactionTypeSelectionDialog(
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                text = "自定义类型代码 / Custom Hex",
+                                text = "Custom Type Code (Hex)",
                                 style = MaterialTheme.typography.bodyMedium,
                                 fontWeight = if (isCustom) FontWeight.Bold else FontWeight.Normal
                             )
@@ -395,7 +395,7 @@ fun TransactionTypeSelectionDialog(
                             OutlinedTextField(
                                 value = selectedCode,
                                 onValueChange = { if (it.length <= 2) selectedCode = it.uppercase() },
-                                label = { Text("1 字节 HEX 码 (如 00, 01, 20)") },
+                                label = { Text("1-Byte HEX Code (e.g. 00, 01, 20)") },
                                 singleLine = true,
                                 modifier = Modifier.fillMaxWidth()
                             )
@@ -410,12 +410,12 @@ fun TransactionTypeSelectionDialog(
                     onConfirm(selectedCode.padStart(2, '0').uppercase())
                 }
             ) {
-                Text("保存")
+                Text("Save")
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("取消")
+                Text("Cancel")
             }
         }
     )
@@ -438,12 +438,12 @@ fun TtqEditorDialog(
         title = {
             Column {
                 Text(
-                    text = "终端交易限定符 (TTQ - 9F66)",
+                    text = "Terminal Transaction Qualifiers (TTQ - 9F66)",
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    text = "当前值: ${tempConfig.formattedTtq}",
+                    text = "Current Value: ${tempConfig.formattedTtq}",
                     style = MaterialTheme.typography.titleMedium,
                     fontFamily = FontFamily.Monospace,
                     color = MaterialTheme.colorScheme.primary,
@@ -461,7 +461,7 @@ fun TtqEditorDialog(
             ) {
                 // Presets
                 Text(
-                    text = "快速预设 (Presets)",
+                    text = "Quick Presets",
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary
@@ -518,7 +518,7 @@ fun TtqEditorDialog(
                             tempConfig = tempConfig.copy(ttqHex = clean)
                         }
                     },
-                    label = { Text("直接编辑 HEX (4 字节 / 8 字符)") },
+                    label = { Text("Direct HEX Edit (4 Bytes / 8 Chars)") },
                     singleLine = true,
                     textStyle = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace),
                     modifier = Modifier.fillMaxWidth()
@@ -528,15 +528,15 @@ fun TtqEditorDialog(
 
                 // Bitwise switch toggles
                 Text(
-                    text = "独立 Bit 位开关控制 (Bitwise Flags)",
+                    text = "Individual Bit Flags Control",
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary
                 )
 
                 TtqSwitchItem(
-                    title = "非接触式 EMV 模式 (qVSDC)",
-                    subtitle = "Byte 1 Bit 7 (0x40) · 标准芯片非接交易",
+                    title = "Contactless EMV Mode (qVSDC)",
+                    subtitle = "Byte 1 Bit 7 (0x40) · Standard contactless chip",
                     checked = tempConfig.ttqEmvSupported,
                     onCheckedChange = {
                         tempConfig = tempConfig.withTtqBit(0, 0x40, it)
@@ -545,8 +545,8 @@ fun TtqEditorDialog(
                 )
 
                 TtqSwitchItem(
-                    title = "非接触式磁条模式 (MSD)",
-                    subtitle = "Byte 1 Bit 8 (0x80) · 向后兼容磁条仿真",
+                    title = "Contactless Magstripe Mode (MSD)",
+                    subtitle = "Byte 1 Bit 8 (0x80) · Backward compatible MSD emulation",
                     checked = tempConfig.ttqMagStripeSupported,
                     onCheckedChange = {
                         tempConfig = tempConfig.withTtqBit(0, 0x80, it)
@@ -555,8 +555,8 @@ fun TtqEditorDialog(
                 )
 
                 TtqSwitchItem(
-                    title = "要求联机密文 (ARQC Required)",
-                    subtitle = "Byte 2 Bit 8 (0x80) · 必须生成联机交易授权请求",
+                    title = "Online Cryptogram Required (ARQC)",
+                    subtitle = "Byte 2 Bit 8 (0x80) · Must generate online authorization request",
                     checked = tempConfig.ttqOnlineCryptogramRequired,
                     onCheckedChange = {
                         tempConfig = tempConfig.withTtqBit(1, 0x80, it)
@@ -565,8 +565,8 @@ fun TtqEditorDialog(
                 )
 
                 TtqSwitchItem(
-                    title = "支持移动设备持卡人验证 (Mobile CVM)",
-                    subtitle = "Byte 3 Bit 7 (0x40) · Apple Pay / Google Pay / 指纹面容",
+                    title = "Mobile CVM Supported",
+                    subtitle = "Byte 3 Bit 7 (0x40) · Apple Pay / Google Pay / Biometric",
                     checked = tempConfig.ttqMobileCvmSupported,
                     onCheckedChange = {
                         tempConfig = tempConfig.withTtqBit(2, 0x40, it)
@@ -575,8 +575,8 @@ fun TtqEditorDialog(
                 )
 
                 TtqSwitchItem(
-                    title = "支持联机 PIN 验证 (Online PIN)",
-                    subtitle = "Byte 1 Bit 5 (0x10) · 密码键盘联机核密",
+                    title = "Online PIN Supported",
+                    subtitle = "Byte 1 Bit 5 (0x10) · PIN pad online verification",
                     checked = tempConfig.ttqOnlinePinSupported,
                     onCheckedChange = {
                         tempConfig = tempConfig.withTtqBit(0, 0x10, it)
@@ -585,8 +585,8 @@ fun TtqEditorDialog(
                 )
 
                 TtqSwitchItem(
-                    title = "支持纸质签名验证 (Signature)",
-                    subtitle = "Byte 1 Bit 4 (0x08) · 传统凭单小票签名",
+                    title = "Paper Signature Supported",
+                    subtitle = "Byte 1 Bit 4 (0x08) · Traditional receipt signature",
                     checked = tempConfig.ttqSignatureSupported,
                     onCheckedChange = {
                         tempConfig = tempConfig.withTtqBit(0, 0x08, it)
@@ -595,8 +595,8 @@ fun TtqEditorDialog(
                 )
 
                 TtqSwitchItem(
-                    title = "要求持卡人验证 (CVM Required)",
-                    subtitle = "Byte 2 Bit 7 (0x40) · 要求 PIN 或签名",
+                    title = "Cardholder Verification Required (CVM)",
+                    subtitle = "Byte 2 Bit 7 (0x40) · Require PIN or signature",
                     checked = tempConfig.ttqCvmRequired,
                     onCheckedChange = {
                         tempConfig = tempConfig.withTtqBit(1, 0x40, it)
@@ -605,8 +605,8 @@ fun TtqEditorDialog(
                 )
 
                 TtqSwitchItem(
-                    title = "支持发卡行脚本更新 (Issuer Update)",
-                    subtitle = "Byte 3 Bit 8 (0x80) · 联机响应写卡处理",
+                    title = "Issuer Update Supported",
+                    subtitle = "Byte 3 Bit 8 (0x80) · Post-auth card script processing",
                     checked = tempConfig.ttqIssuerUpdateSupported,
                     onCheckedChange = {
                         tempConfig = tempConfig.withTtqBit(2, 0x80, it)
@@ -622,12 +622,12 @@ fun TtqEditorDialog(
                     onConfirm(finalHex)
                 }
             ) {
-                Text("保存")
+                Text("Save")
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("取消")
+                Text("Cancel")
             }
         }
     )
@@ -681,7 +681,7 @@ fun TerminalCapabilitiesDialog(
         onDismissRequest = onDismiss,
         title = {
             Text(
-                text = "终端能力 (Tag 9F33 - 3 字节)",
+                text = "Terminal Capabilities (Tag 9F33 - 3 Bytes)",
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold
             )
@@ -694,7 +694,7 @@ fun TerminalCapabilitiesDialog(
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 Text(
-                    text = "快速预设 (Presets)",
+                    text = "Quick Presets",
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary
@@ -741,7 +741,7 @@ fun TerminalCapabilitiesDialog(
                 OutlinedTextField(
                     value = selectedHex,
                     onValueChange = { if (it.length <= 6) selectedHex = it.uppercase() },
-                    label = { Text("自定义 HEX (3 字节 / 6 字符，如 E0F8C8)") },
+                    label = { Text("Custom HEX (3 Bytes / 6 Chars, e.g. E0F8C8)") },
                     singleLine = true,
                     textStyle = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace),
                     modifier = Modifier.fillMaxWidth()
@@ -750,12 +750,12 @@ fun TerminalCapabilitiesDialog(
         },
         confirmButton = {
             Button(onClick = { onConfirm(selectedHex.padEnd(6, '0').take(6).uppercase()) }) {
-                Text("保存")
+                Text("Save")
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("取消")
+                Text("Cancel")
             }
         }
     )
@@ -776,7 +776,7 @@ fun TerminalTypeDialog(
         onDismissRequest = onDismiss,
         title = {
             Text(
-                text = "终端类型 (Tag 9F35 - 1 字节)",
+                text = "Terminal Type (Tag 9F35 - 1 Byte)",
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold
             )
@@ -822,7 +822,7 @@ fun TerminalTypeDialog(
                 OutlinedTextField(
                     value = selectedHex,
                     onValueChange = { if (it.length <= 2) selectedHex = it.uppercase() },
-                    label = { Text("自定义 1 字节 HEX (如 22, 21, 35)") },
+                    label = { Text("Custom 1-Byte HEX (e.g. 22, 21, 35)") },
                     singleLine = true,
                     textStyle = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace),
                     modifier = Modifier.fillMaxWidth()
@@ -831,12 +831,12 @@ fun TerminalTypeDialog(
         },
         confirmButton = {
             Button(onClick = { onConfirm(selectedHex.padStart(2, '0').take(2).uppercase()) }) {
-                Text("保存")
+                Text("Save")
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("取消")
+                Text("Cancel")
             }
         }
     )
@@ -861,7 +861,7 @@ fun MerchantDetailsDialog(
         onDismissRequest = onDismiss,
         title = {
             Text(
-                text = "商户与硬件终端信息",
+                text = "Merchant & Hardware Terminal Details",
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold
             )
@@ -876,7 +876,7 @@ fun MerchantDetailsDialog(
                 OutlinedTextField(
                     value = tempMerchantName,
                     onValueChange = { tempMerchantName = it.take(30) },
-                    label = { Text("商户名称与地址 (Tag 9F4E)") },
+                    label = { Text("Merchant Name & Location (Tag 9F4E)") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -884,7 +884,7 @@ fun MerchantDetailsDialog(
                 OutlinedTextField(
                     value = tempIfdSerial,
                     onValueChange = { tempIfdSerial = it.take(8) },
-                    label = { Text("终端硬件序列号 (Tag 9F1E - 8位)") },
+                    label = { Text("IFD Serial Number (Tag 9F1E - 8 chars)") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -892,7 +892,7 @@ fun MerchantDetailsDialog(
                 OutlinedTextField(
                     value = tempMcc,
                     onValueChange = { if (it.length <= 4 && it.all { c -> c.isDigit() }) tempMcc = it },
-                    label = { Text("商户类别码 MCC (Tag 9F15 - 4位，如 5411)") },
+                    label = { Text("Merchant Category Code MCC (Tag 9F15 - 4 digits, e.g. 5411)") },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     modifier = Modifier.fillMaxWidth()
@@ -901,12 +901,12 @@ fun MerchantDetailsDialog(
         },
         confirmButton = {
             Button(onClick = { onConfirm(tempMerchantName, tempIfdSerial, tempMcc) }) {
-                Text("保存")
+                Text("Save")
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("取消")
+                Text("Cancel")
             }
         }
     )
@@ -941,7 +941,7 @@ fun TerminalQuickSwitchBottomSheet(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "快速切换 POS 交易参数",
+                    text = "Quick Terminal Configuration",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
@@ -949,14 +949,14 @@ fun TerminalQuickSwitchBottomSheet(
                     onDismiss()
                     onOpenFullSettings()
                 }) {
-                    Text("更多设置")
+                    Text("All Settings")
                     Icon(Icons.Default.ChevronRight, contentDescription = null, modifier = Modifier.size(16.dp))
                 }
             }
 
             // Quick Currency Selection
             Text(
-                text = "交易币种 (Currency)",
+                text = "Transaction Currency",
                 style = MaterialTheme.typography.labelMedium,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.primary
@@ -978,7 +978,7 @@ fun TerminalQuickSwitchBottomSheet(
 
             // Quick Transaction Type Selection
             Text(
-                text = "交易类型 (Transaction Type)",
+                text = "Transaction Type",
                 style = MaterialTheme.typography.labelMedium,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.primary
@@ -993,7 +993,7 @@ fun TerminalQuickSwitchBottomSheet(
                     FilterChip(
                         selected = isSelected,
                         onClick = { onTransactionTypeSelected(type.code) },
-                        label = { Text(type.name.split(" - ").getOrNull(1)?.split(" / ")?.getOrNull(0) ?: type.code) }
+                        label = { Text(type.name.split(" - ").getOrNull(1) ?: type.code) }
                     )
                 }
             }
@@ -1006,18 +1006,18 @@ fun TerminalQuickSwitchBottomSheet(
             ) {
                 Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(
-                        text = "当前 POS 终端属性状态",
+                        text = "Current POS Terminal Profile",
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        text = "TTQ (9F66): ${terminalConfig.formattedTtq}  |  终端能力 (9F33): ${terminalConfig.formattedTerminalCapabilities}",
+                        text = "TTQ (9F66): ${terminalConfig.formattedTtq}  |  Capabilities (9F33): ${terminalConfig.formattedTerminalCapabilities}",
                         style = MaterialTheme.typography.labelSmall,
                         fontFamily = FontFamily.Monospace,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Text(
-                        text = "国家代码: ${terminalConfig.countryCode}  |  终端类型: ${terminalConfig.terminalTypeHex}",
+                        text = "Country: ${terminalConfig.countryCode}  |  Terminal Type: ${terminalConfig.terminalTypeHex}",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
