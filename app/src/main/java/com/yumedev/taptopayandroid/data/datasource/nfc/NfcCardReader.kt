@@ -339,8 +339,6 @@ class NfcCardReader @Inject constructor(
      */
     internal fun parseDol(dolBytes: ByteArray): List<DolItem> {
         val items = mutableListOf<DolItem>()
-    internal fun parseDol(dolBytes: ByteArray): List<DolItem> {
-        val items = mutableListOf<DolItem>()
         var i = 0
 
         while (i < dolBytes.size) {
