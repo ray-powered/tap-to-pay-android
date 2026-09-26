@@ -261,23 +261,27 @@ class NfcCardReader @Inject constructor(
             // Step 5: Transaction APDU - GENERATE AC (Application Cryptogram)
             try {
                 val combinedRecords = allRecords.flatMap { it.toList() }.toByteArray()
-                val cdol1 = findTag(combinedRecords, 0x8C.toByte()) ?: findTag(aidResponse, 0x8C.toByte())
-                if (cdol1 != null && cdol1.size in 2..64) {
-                    val cdolItems = parseDol(cdol1)
-                    if (cdolItems.isNotEmpty()) {
-                        SecureLogger.d(TAG) { "Found CDOL1 (${cdolItems.size} items): ${cdolItems.joinToString { "${it.tag}:${it.length}B" }}" }
-                        val cdolData = buildDolData(cdolItems, amountCents, aipBytes, terminalConfig = config)
-                        if (cdolData.isNotEmpty() && cdolData.size <= 255) {
-                            SecureLogger.d(TAG) { "Constructed CDOL1 data (${cdolData.size}B): ${cdolData.toHexString()}" }
+                val alreadyHasCryptogram = findTag(combinedRecords, 0x9F.toByte(), 0x26.toByte()) != null
+                if (alreadyHasCryptogram) {
+                    SecureLogger.d(TAG) { "Cryptogram (9F26) already returned in GPO/records (Streamlined Contactless mode)" }
+                } else {
+                    val cdol1 = findTag(combinedRecords, 0x8C.toByte()) ?: findTag(aidResponse, 0x8C.toByte())
+                    if (cdol1 != null && cdol1.size in 2..64) {
+                        val cdolItems = parseDol(cdol1)
+                        if (cdolItems.isNotEmpty()) {
+                            SecureLogger.d(TAG) { "Found CDOL1 (${cdolItems.size} items): ${cdolItems.joinToString { "${it.tag}:${it.length}B" }}" }
+                            val cdolData = buildDolData(cdolItems, amountCents, aipBytes, terminalConfig = config)
+                            if (cdolData.isNotEmpty() && cdolData.size <= 255) {
+                                SecureLogger.d(TAG) { "Constructed CDOL1 data (${cdolData.size}B): ${cdolData.toHexString()}" }
 
-                            // CLA: 80, INS: AE (GENERATE AC), P1: 80 (Request ARQC for online auth), P2: 00
-                            val genAcCommand = byteArrayOf(
-                                0x80.toByte(),
-                                0xAE.toByte(),
-                                0x80.toByte(), // Request ARQC
-                                0x00.toByte(),
-                                cdolData.size.toByte()
-                            ) + cdolData + byteArrayOf(0x00.toByte())
+                                // CLA: 80, INS: AE (GENERATE AC), P1: 80 (Request ARQC for online auth), P2: 00
+                                val genAcCommand = byteArrayOf(
+                                    0x80.toByte(),
+                                    0xAE.toByte(),
+                                    0x80.toByte(), // Request ARQC
+                                    0x00.toByte(),
+                                    cdolData.size.toByte()
+                                ) + cdolData + byteArrayOf(0x00.toByte())
 
                             val genAcResponse = isoDep.transceive(genAcCommand)
 
@@ -296,6 +300,7 @@ class NfcCardReader @Inject constructor(
                                 SecureLogger.dSecure(TAG, "GENERATE AC Response: ${genAcResponse.toHexString()}")
                             } else {
                                 SecureLogger.d(TAG) { "GENERATE AC status: ${getStatusWord(genAcResponse)}" }
+                            }
                             }
                         }
                     }

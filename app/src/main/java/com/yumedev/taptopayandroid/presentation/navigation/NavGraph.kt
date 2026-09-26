@@ -122,11 +122,13 @@ fun NavGraph(
         ) { backStackEntry ->
             val amount = backStackEntry.arguments?.getString("amount") ?: "$0.00"
             val emvCardData by sharedViewModel.lastEmvCardData.collectAsState()
+            val terminalConfig by sharedViewModel.terminalConfig.collectAsState()
 
             emvCardData?.let { data ->
                 SuccessScreen(
                     amount = amount,
                     emvCardData = data,
+                    terminalConfig = terminalConfig,
                     innerPadding = innerPadding,
                     onNavigateToDetails = {
                         navController.navigate(NavigationRoutes.CardDetail.route) {
