@@ -3,6 +3,7 @@ package com.yumedev.taptopayandroid
 import android.content.Intent
 import android.nfc.NfcAdapter
 import android.nfc.Tag
+import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
@@ -41,8 +42,11 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var handleNfcTagUseCase: HandleNfcTagUseCase
 
+    private var nfcAdapter: NfcAdapter? = null
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        nfcAdapter = NfcAdapter.getDefaultAdapter(this)
         enableEdgeToEdge()
         setContent {
             val systemInDarkTheme = isSystemInDarkTheme()
@@ -98,23 +102,70 @@ class MainActivity : ComponentActivity() {
         handleNfcIntent(intent)
     }
 
+    override fun onResume() {
+        super.onResume()
+        enableNfcReaderMode()
+    }
+
+    override fun onPause() {
+        super.onPause()
+        disableNfcReaderMode()
+    }
+
+    private fun enableNfcReaderMode() {
+        val adapter = nfcAdapter ?: return
+        if (!adapter.isEnabled) return
+
+        val flags = NfcAdapter.FLAG_READER_NFC_A or
+                NfcAdapter.FLAG_READER_NFC_B or
+                NfcAdapter.FLAG_READER_SKIP_NDEF_CHECK or
+                NfcAdapter.FLAG_READER_NO_PLATFORM_SOUNDS
+
+        val extras = Bundle().apply {
+            putInt(NfcAdapter.EXTRA_READER_PRESENCE_CHECK_DELAY, 250)
+        }
+
+        adapter.enableReaderMode(
+            this,
+            { tag ->
+                Log.d(TAG, "NFC Tag discovered via ReaderMode: ${tag.id.contentToString()}")
+                lifecycleScope.launch {
+                    handleNfcTagUseCase(tag)
+                }
+            },
+            flags,
+            extras
+        )
+        Log.d(TAG, "NFC ReaderMode enabled")
+    }
+
+    private fun disableNfcReaderMode() {
+        nfcAdapter?.disableReaderMode(this)
+        Log.d(TAG, "NFC ReaderMode disabled")
+    }
+
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
         handleNfcIntent(intent)
     }
 
+    @Suppress("DEPRECATION")
     private fun handleNfcIntent(intent: Intent?) {
         if (intent == null) return
 
-        val action = intent.action
+        val action = intent.action ?: return
         Log.d(TAG, "NFC Intent received: $action")
 
         if (action == NfcAdapter.ACTION_TECH_DISCOVERED ||
-            action == NfcAdapter.ACTION_TAG_DISCOVERED
+            action == NfcAdapter.ACTION_TAG_DISCOVERED ||
+            action == NfcAdapter.ACTION_NDEF_DISCOVERED
         ) {
-
-            val tag: Tag? = intent.getParcelableExtra(NfcAdapter.EXTRA_TAG)
+            val tag: Tag? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                intent.getParcelableExtra(NfcAdapter.EXTRA_TAG, Tag::class.java)
+            } else {
+                intent.getParcelableExtra(NfcAdapter.EXTRA_TAG)
+            }
             if (tag != null) {
                 Log.d(TAG, "NFC Tag detected: ${tag.id.contentToString()}")
 

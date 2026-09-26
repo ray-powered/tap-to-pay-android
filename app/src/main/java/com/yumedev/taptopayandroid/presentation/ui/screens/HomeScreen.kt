@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.nfc.NfcAdapter
+import androidx.core.content.ContextCompat
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -104,7 +105,12 @@ fun HomeScreen(
         }
 
         val filter = IntentFilter(NfcAdapter.ACTION_ADAPTER_STATE_CHANGED)
-        context.registerReceiver(nfcStateReceiver, filter)
+        ContextCompat.registerReceiver(
+            context,
+            nfcStateReceiver,
+            filter,
+            ContextCompat.RECEIVER_EXPORTED
+        )
 
         onDispose {
             context.unregisterReceiver(nfcStateReceiver)
