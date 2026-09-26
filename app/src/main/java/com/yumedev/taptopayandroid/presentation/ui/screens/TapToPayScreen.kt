@@ -245,7 +245,7 @@ fun TapToPayScreen(
     }
 }
 
-// ─── EMV Contactless 4-LED Indicator ───
+// ─── EMV / UnionPay Contactless 4-LED Indicator (Blue, Yellow, Green, Red) ───
 
 @Composable
 private fun PosLedIndicator(
@@ -254,15 +254,19 @@ private fun PosLedIndicator(
     isSeePhone: Boolean,
     apduPulseCount: Int = 0
 ) {
-    val activeGreen = Color(0xFF00E676)
-    val amberColor = Color(0xFFFFB300)
-    val inactiveColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f)
+    // Standard Contactless POS 4-LED Colors: Blue, Yellow, Green, Red
+    val blueColor = Color(0xFF2979FF)     // LED 1: Blue (Power / RF Field / Reader Ready)
+    val yellowColor = Color(0xFFFFB300)   // LED 2: Yellow (Processing / Card Detected / APDU Transmission)
+    val greenColor = Color(0xFF00E676)    // LED 3: Green (Success / Approved)
+    val redColor = Color(0xFFE53935)      // LED 4: Red (Declined / Error)
 
-    // Fast blink animation for LED 2 during APDU transmission / reading
+    val inactiveAlpha = 0.2f
+
+    // Fast blink animation for Yellow LED 2 during APDU transmission / reading
     val infiniteTransition = rememberInfiniteTransition(label = "posLedTransition")
     val led2BlinkAlpha by infiniteTransition.animateFloat(
         initialValue = 1f,
-        targetValue = 0.15f,
+        targetValue = 0.2f,
         animationSpec = infiniteRepeatable(
             animation = tween(120, easing = LinearEasing),
             repeatMode = RepeatMode.Reverse
@@ -270,11 +274,22 @@ private fun PosLedIndicator(
         label = "led2Blink"
     )
 
+    // Pulsing attention wave for See Phone (Two-Tap CDCVM)
+    val seePhonePulseAlpha by infiniteTransition.animateFloat(
+        initialValue = 1f,
+        targetValue = 0.25f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(450, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "seePhonePulse"
+    )
+
     // Dynamic pulse scale whenever a new APDU command is transmitted
     val pulseScale = remember { Animatable(1f) }
     LaunchedEffect(apduPulseCount) {
         if (isReading && apduPulseCount > 0) {
-            pulseScale.snapTo(1.3f)
+            pulseScale.snapTo(1.35f)
             pulseScale.animateTo(1f, animationSpec = tween(100, easing = FastOutSlowInEasing))
         }
     }
@@ -283,63 +298,46 @@ private fun PosLedIndicator(
         horizontalArrangement = Arrangement.spacedBy(6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        when {
-            isSeePhone -> {
-                // All 4 pulse amber to signal user attention
-                repeat(4) {
-                    Box(
-                        modifier = Modifier
-                            .size(12.dp)
-                            .clip(CircleShape)
-                            .background(amberColor)
-                    )
-                }
-            }
-            isReading -> {
-                // EMV Contactless Spec during APDU Reading:
-                // LED 1: Solid Green (RF field active, card present in field)
-                Box(
-                    modifier = Modifier
-                        .size(12.dp)
-                        .clip(CircleShape)
-                        .background(activeGreen)
-                )
-                // LED 2: Blinks rapidly with APDU transceive transmission!
-                Box(
-                    modifier = Modifier
-                        .size(12.dp)
-                        .scale(pulseScale.value)
-                        .clip(CircleShape)
-                        .background(activeGreen.copy(alpha = led2BlinkAlpha))
-                )
-                // LEDs 3 & 4: Inactive during read (only light up upon card read OK / success)
-                repeat(2) {
-                    Box(
-                        modifier = Modifier
-                            .size(12.dp)
-                            .clip(CircleShape)
-                            .background(inactiveColor)
-                    )
-                }
-            }
-            else -> {
-                // Standby: 1st LED active green (EMV standard: reader ready for card presentation), others standby
-                Box(
-                    modifier = Modifier
-                        .size(12.dp)
-                        .clip(CircleShape)
-                        .background(activeGreen)
-                )
-                repeat(3) {
-                    Box(
-                        modifier = Modifier
-                            .size(12.dp)
-                            .clip(CircleShape)
-                            .background(inactiveColor)
-                    )
-                }
-            }
+        // LED 1: BLUE (RF Field / Reader Ready)
+        // Solid Blue when terminal is energized and waiting for card or card in field
+        Box(
+            modifier = Modifier
+                .size(12.dp)
+                .clip(CircleShape)
+                .background(blueColor)
+        )
+
+        // LED 2: YELLOW (Processing / Card Detected / APDU Transmission / See Phone)
+        val (led2Alpha, led2Scale) = when {
+            isReading -> Pair(led2BlinkAlpha, pulseScale.value)
+            isSeePhone -> Pair(seePhonePulseAlpha, 1f)
+            else -> Pair(inactiveAlpha, 1f)
         }
+        Box(
+            modifier = Modifier
+                .size(12.dp)
+                .scale(led2Scale)
+                .clip(CircleShape)
+                .background(yellowColor.copy(alpha = led2Alpha))
+        )
+
+        // LED 3: GREEN (Transaction Success / Approved)
+        // Inactive during waiting/reading, lights up on success
+        Box(
+            modifier = Modifier
+                .size(12.dp)
+                .clip(CircleShape)
+                .background(greenColor.copy(alpha = inactiveAlpha))
+        )
+
+        // LED 4: RED (Declined / Error)
+        // Inactive during waiting/reading
+        Box(
+            modifier = Modifier
+                .size(12.dp)
+                .clip(CircleShape)
+                .background(redColor.copy(alpha = inactiveAlpha))
+        )
     }
 }
 
@@ -499,7 +497,7 @@ private fun ReadingCardContent(currentApdu: String? = null) {
                         .size(8.dp)
                         .clip(CircleShape)
                         .alpha(dotAlpha)
-                        .background(Color(0xFF00E676))
+                        .background(Color(0xFFFFB300))
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(

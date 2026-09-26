@@ -604,45 +604,91 @@ fun SuccessScreen(
     }
 }
 
-// ─── Animated Contactless 4-LED Indicator ───
+// ─── Contactless 4-LED Indicator: Blue, Yellow, Green, Red ───
 
 @Composable
 private fun PosAnimatedLedIndicator(isDeclined: Boolean) {
-    val ledColor = if (isDeclined) Color(0xFFE53935) else Color(0xFF00E676)
-    val inactiveColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f)
+    val blueColor = Color(0xFF2979FF)     // LED 1: Blue
+    val yellowColor = Color(0xFFFFB300)   // LED 2: Yellow
+    val greenColor = Color(0xFF00E676)    // LED 3: Green
+    val redColor = Color(0xFFE53935)      // LED 4: Red
+
+    val inactiveAlpha = 0.2f
 
     // 4 sequential LED animations
-    val led1Alpha = remember { Animatable(0.2f) }
-    val led2Alpha = remember { Animatable(0.2f) }
-    val led3Alpha = remember { Animatable(0.2f) }
-    val led4Alpha = remember { Animatable(0.2f) }
+    val led1Alpha = remember { Animatable(inactiveAlpha) }
+    val led2Alpha = remember { Animatable(inactiveAlpha) }
+    val led3Alpha = remember { Animatable(inactiveAlpha) }
+    val led4Alpha = remember { Animatable(inactiveAlpha) }
 
-    LaunchedEffect(Unit) {
+    LaunchedEffect(isDeclined) {
         delay(40)
-        led1Alpha.animateTo(1f, tween(80))
-        led2Alpha.animateTo(1f, tween(80))
-        led3Alpha.animateTo(1f, tween(80))
-        led4Alpha.animateTo(1f, tween(80))
+        if (isDeclined) {
+            // On Decline: LED 1 (Blue) and LED 4 (Red) active
+            led1Alpha.animateTo(1f, tween(60))
+            led4Alpha.animateTo(1f, tween(120))
+        } else {
+            // On Success: Sweep across Blue (Ready) -> Yellow (Read) -> Green (Approved)
+            // Standard contactless payment approved sequence!
+            led1Alpha.animateTo(1f, tween(70))
+            delay(40)
+            led2Alpha.animateTo(1f, tween(70))
+            delay(40)
+            led3Alpha.animateTo(1f, tween(90))
+        }
     }
 
     Row(
         horizontalArrangement = Arrangement.spacedBy(6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        val leds = listOf(led1Alpha, led2Alpha, led3Alpha, led4Alpha)
-        leds.forEach { anim ->
-            Box(
-                modifier = Modifier
-                    .size(10.dp)
-                    .clip(CircleShape)
-                    .background(if (anim.value > 0.5f) ledColor else inactiveColor)
-                    .graphicsLayer {
-                        alpha = if (anim.value > 0.5f) 1f else 0.35f
-                        scaleX = if (anim.value > 0.5f) 1f else 0.85f
-                        scaleY = if (anim.value > 0.5f) 1f else 0.85f
-                    }
-            )
-        }
+        // LED 1: Blue
+        Box(
+            modifier = Modifier
+                .size(10.dp)
+                .clip(CircleShape)
+                .background(blueColor.copy(alpha = led1Alpha.value))
+                .graphicsLayer {
+                    scaleX = if (led1Alpha.value > 0.5f) 1f else 0.85f
+                    scaleY = if (led1Alpha.value > 0.5f) 1f else 0.85f
+                }
+        )
+
+        // LED 2: Yellow
+        Box(
+            modifier = Modifier
+                .size(10.dp)
+                .clip(CircleShape)
+                .background(yellowColor.copy(alpha = led2Alpha.value))
+                .graphicsLayer {
+                    scaleX = if (led2Alpha.value > 0.5f) 1f else 0.85f
+                    scaleY = if (led2Alpha.value > 0.5f) 1f else 0.85f
+                }
+        )
+
+        // LED 3: Green
+        Box(
+            modifier = Modifier
+                .size(10.dp)
+                .clip(CircleShape)
+                .background(greenColor.copy(alpha = led3Alpha.value))
+                .graphicsLayer {
+                    scaleX = if (led3Alpha.value > 0.5f) 1f else 0.85f
+                    scaleY = if (led3Alpha.value > 0.5f) 1f else 0.85f
+                }
+        )
+
+        // LED 4: Red
+        Box(
+            modifier = Modifier
+                .size(10.dp)
+                .clip(CircleShape)
+                .background(redColor.copy(alpha = led4Alpha.value))
+                .graphicsLayer {
+                    scaleX = if (led4Alpha.value > 0.5f) 1f else 0.85f
+                    scaleY = if (led4Alpha.value > 0.5f) 1f else 0.85f
+                }
+        )
     }
 }
 
