@@ -25,8 +25,7 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.yumedev.taptopayandroid.domain.model.CurrencyPreset
-import com.yumedev.taptopayandroid.domain.model.TerminalConfig
+import com.yumedev.taptopayandroid.domain.model.*
 
 /**
  * Currency Selection Dialog

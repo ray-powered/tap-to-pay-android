@@ -532,7 +532,7 @@ class NfcCardReader @Inject constructor(
                 bytes.size < targetLength -> bytes + ByteArray(targetLength - bytes.size)
                 else -> bytes.copyOfRange(0, targetLength)
             }
-        } catch (_: Exception) {
+        } catch (e: Exception) {
             default
         }
     }
