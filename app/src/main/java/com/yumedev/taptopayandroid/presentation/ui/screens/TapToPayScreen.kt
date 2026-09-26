@@ -49,6 +49,8 @@ fun TapToPayScreen(
 ) {
     val nfcState by viewModel.nfcState.collectAsState()
     val terminalConfig by viewModel.terminalConfig.collectAsState()
+    val currentApduCommand by viewModel.currentApduCommand.collectAsState()
+    val apduPulseCount by viewModel.apduPulseCount.collectAsState()
     val context = LocalContext.current
     val hapticFeedback = LocalHapticFeedback.current
 
@@ -125,7 +127,8 @@ fun TapToPayScreen(
                 PosLedIndicator(
                     isWaiting = !isSeePhone && !isReading,
                     isReading = isReading,
-                    isSeePhone = isSeePhone
+                    isSeePhone = isSeePhone,
+                    apduPulseCount = apduPulseCount
                 )
             }
         }
@@ -174,7 +177,7 @@ fun TapToPayScreen(
                     SeePhoneRetryContent(instructions = instructions)
                 }
                 isReading -> {
-                    ReadingCardContent()
+                    ReadingCardContent(currentApdu = currentApduCommand)
                 }
                 else -> {
                     WaitingTapContent()
@@ -248,16 +251,38 @@ fun TapToPayScreen(
 private fun PosLedIndicator(
     isWaiting: Boolean,
     isReading: Boolean,
-    isSeePhone: Boolean
+    isSeePhone: Boolean,
+    apduPulseCount: Int = 0
 ) {
+    val activeGreen = Color(0xFF00E676)
+    val amberColor = Color(0xFFFFB300)
+    val inactiveColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f)
+
+    // Fast blink animation for LED 2 during APDU transmission / reading
+    val infiniteTransition = rememberInfiniteTransition(label = "posLedTransition")
+    val led2BlinkAlpha by infiniteTransition.animateFloat(
+        initialValue = 1f,
+        targetValue = 0.15f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(120, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "led2Blink"
+    )
+
+    // Dynamic pulse scale whenever a new APDU command is transmitted
+    val pulseScale = remember { Animatable(1f) }
+    LaunchedEffect(apduPulseCount) {
+        if (isReading && apduPulseCount > 0) {
+            pulseScale.snapTo(1.3f)
+            pulseScale.animateTo(1f, animationSpec = tween(100, easing = FastOutSlowInEasing))
+        }
+    }
+
     Row(
         horizontalArrangement = Arrangement.spacedBy(6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        val activeGreen = Color(0xFF00E676)
-        val amberColor = Color(0xFFFFB300)
-        val inactiveColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f)
-
         when {
             isSeePhone -> {
                 // All 4 pulse amber to signal user attention
@@ -271,18 +296,34 @@ private fun PosLedIndicator(
                 }
             }
             isReading -> {
-                // All LEDs active green during read
-                repeat(4) {
+                // EMV Contactless Spec during APDU Reading:
+                // LED 1: Solid Green (RF field active, card present in field)
+                Box(
+                    modifier = Modifier
+                        .size(12.dp)
+                        .clip(CircleShape)
+                        .background(activeGreen)
+                )
+                // LED 2: Blinks rapidly with APDU transceive transmission!
+                Box(
+                    modifier = Modifier
+                        .size(12.dp)
+                        .scale(pulseScale.value)
+                        .clip(CircleShape)
+                        .background(activeGreen.copy(alpha = led2BlinkAlpha))
+                )
+                // LEDs 3 & 4: Inactive during read (only light up upon card read OK / success)
+                repeat(2) {
                     Box(
                         modifier = Modifier
                             .size(12.dp)
                             .clip(CircleShape)
-                            .background(activeGreen)
+                            .background(inactiveColor)
                     )
                 }
             }
             else -> {
-                // 1st LED active green (EMV standard: reader ready for card presentation), others standby
+                // Standby: 1st LED active green (EMV standard: reader ready for card presentation), others standby
                 Box(
                     modifier = Modifier
                         .size(12.dp)
@@ -401,18 +442,18 @@ private fun WaitingTapContent() {
 // ─── Hero Content: Reading in Progress ───
 
 @Composable
-private fun ReadingCardContent() {
+private fun ReadingCardContent(currentApdu: String? = null) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
         CircularProgressIndicator(
-            modifier = Modifier.size(72.dp),
+            modifier = Modifier.size(64.dp),
             color = MaterialTheme.colorScheme.primary,
             strokeWidth = 4.dp
         )
 
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(20.dp))
 
         Text(
             text = "READING CARD...",
@@ -422,14 +463,54 @@ private fun ReadingCardContent() {
             color = MaterialTheme.colorScheme.primary
         )
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(6.dp))
 
         Text(
-            text = "DO NOT REMOVE CARD OR DEVICE",
+            text = "HOLD CARD STILL",
             style = MaterialTheme.typography.bodyMedium,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Live APDU status badge
+        Surface(
+            shape = RoundedCornerShape(20.dp),
+            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f))
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                val infiniteTransition = rememberInfiniteTransition(label = "dotBlink")
+                val dotAlpha by infiniteTransition.animateFloat(
+                    initialValue = 1f,
+                    targetValue = 0.3f,
+                    animationSpec = infiniteRepeatable(
+                        animation = tween(200, easing = LinearEasing),
+                        repeatMode = RepeatMode.Reverse
+                    ),
+                    label = "dotAlpha"
+                )
+                Box(
+                    modifier = Modifier
+                        .size(8.dp)
+                        .clip(CircleShape)
+                        .alpha(dotAlpha)
+                        .background(Color(0xFF00E676))
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = currentApdu ?: "EXCHANGING APDU...",
+                    style = MaterialTheme.typography.labelSmall,
+                    fontFamily = FontFamily.Monospace,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            }
+        }
     }
 }
 

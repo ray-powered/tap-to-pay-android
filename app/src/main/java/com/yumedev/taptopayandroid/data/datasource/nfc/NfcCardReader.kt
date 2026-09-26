@@ -8,6 +8,7 @@ import com.yumedev.taptopayandroid.data.preferences.PreferencesManager
 import com.yumedev.taptopayandroid.domain.model.*
 import com.yumedev.taptopayandroid.util.SecureLogger
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.withContext
 import java.io.IOException
 import java.security.SecureRandom
@@ -25,6 +26,11 @@ class NfcCardReader @Inject constructor(
 
     companion object {
         private const val TAG = "NfcCardReader"
+        val apduEventFlow = MutableSharedFlow<String>(extraBufferCapacity = 64)
+    }
+
+    private fun notifyApdu(name: String) {
+        apduEventFlow.tryEmit(name)
     }
 
     data class DolItem(val tag: String, val length: Int)
@@ -66,6 +72,7 @@ class NfcCardReader @Inject constructor(
                 0x00.toByte()  // Le (expected length)
             )
 
+            notifyApdu("SELECT PPSE")
             val ppseResponse = isoDep.transceive(ppseCommand)
 
             apduCommands.add(ApduCommand(
@@ -91,6 +98,7 @@ class NfcCardReader @Inject constructor(
 
                     // Step 3: Select the payment application using AID
                     val selectAidCommand = buildSelectCommand(extractedAid)
+                    notifyApdu("SELECT AID")
                     val resp = isoDep.transceive(selectAidCommand)
 
                     apduCommands.add(ApduCommand(
@@ -135,6 +143,7 @@ class NfcCardReader @Inject constructor(
                 for (candidate in candidateAids) {
                     val selectCmd = buildSelectCommand(candidate)
                     val resp = try {
+                        notifyApdu("SELECT AID")
                         isoDep.transceive(selectCmd)
                     } catch (e: Exception) {
                         SecureLogger.d(TAG) { "Candidate AID probe error: ${e.message}" }
@@ -198,6 +207,7 @@ class NfcCardReader @Inject constructor(
 
             SecureLogger.d(TAG) { "GPO Command: ${gpoCommand.toHexString()}" }
 
+            notifyApdu("GET PROCESSING OPTIONS")
             val gpoResponse = isoDep.transceive(gpoCommand)
 
             apduCommands.add(ApduCommand(
@@ -243,6 +253,7 @@ class NfcCardReader @Inject constructor(
                                     ((sfi shl 3) or 0x04).toByte(),
                                     0x00.toByte()
                                 )
+                                notifyApdu("READ RECORD")
                                 val recordResponse = isoDep.transceive(readRecordCommand)
 
                                 apduCommands.add(ApduCommand(
@@ -285,6 +296,7 @@ class NfcCardReader @Inject constructor(
                                 ((sfi shl 3) or 0x04).toByte(),
                                 0x00.toByte()
                             )
+                            notifyApdu("READ RECORD")
                             val recordResponse = isoDep.transceive(readRecordCommand)
 
                             if (isSuccessResponse(recordResponse)) {
@@ -341,6 +353,7 @@ class NfcCardReader @Inject constructor(
                                     cdolData.size.toByte()
                                 ) + cdolData + byteArrayOf(0x00.toByte())
 
+                            notifyApdu("GENERATE AC")
                             val genAcResponse = isoDep.transceive(genAcCommand)
 
                             apduCommands.add(ApduCommand(

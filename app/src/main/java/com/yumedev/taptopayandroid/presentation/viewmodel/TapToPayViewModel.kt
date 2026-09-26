@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+import com.yumedev.taptopayandroid.data.datasource.nfc.NfcCardReader
 import com.yumedev.taptopayandroid.domain.model.CvmRequirement
 import com.yumedev.taptopayandroid.domain.model.TerminalConfig
 import com.yumedev.taptopayandroid.domain.model.TransactionDecision
@@ -47,10 +48,23 @@ class TapToPayViewModel @Inject constructor(
     )
     val terminalConfig: StateFlow<TerminalConfig> = _terminalConfig.asStateFlow()
 
+    // APDU Transmission Tracking for POS LED 2 blinking & Live APDU UI
+    private val _currentApduCommand = MutableStateFlow<String?>(null)
+    val currentApduCommand: StateFlow<String?> = _currentApduCommand.asStateFlow()
+
+    private val _apduPulseCount = MutableStateFlow(0)
+    val apduPulseCount: StateFlow<Int> = _apduPulseCount.asStateFlow()
+
     init {
         viewModelScope.launch {
             nfcEventRepository.nfcTagFlow.collect { tag ->
                 processNfcTag(tag)
+            }
+        }
+        viewModelScope.launch {
+            NfcCardReader.apduEventFlow.collect { apduName ->
+                _currentApduCommand.value = apduName
+                _apduPulseCount.value += 1
             }
         }
     }
@@ -66,12 +80,15 @@ class TapToPayViewModel @Inject constructor(
 
     private fun processNfcTag(tag: Tag) {
         viewModelScope.launch {
+            _currentApduCommand.value = null
+            _apduPulseCount.value = 0
             _nfcState.value = NfcState.Reading
             val amountCents = parseAmountToCents(_lastAmount.value)
             val currentConfig = getTerminalConfigUseCase?.invoke() ?: _terminalConfig.value
             _terminalConfig.value = currentConfig
             val result = readCardUseCase(tag, amountCents, currentConfig)
 
+            _currentApduCommand.value = null
             _nfcState.value = result.fold(
                 onSuccess = { emvCardData ->
                     _lastEmvCardData.value = emvCardData
@@ -109,10 +126,14 @@ class TapToPayViewModel @Inject constructor(
 
     fun clearStateOnly() {
         _nfcState.value = NfcState.Waiting
+        _currentApduCommand.value = null
+        _apduPulseCount.value = 0
     }
 
     fun startNewTransaction(amount: String) {
         _nfcState.value = NfcState.Waiting
+        _currentApduCommand.value = null
+        _apduPulseCount.value = 0
         _lastAmount.value = amount
         getTerminalConfigUseCase?.invoke()?.let {
             _terminalConfig.value = it
