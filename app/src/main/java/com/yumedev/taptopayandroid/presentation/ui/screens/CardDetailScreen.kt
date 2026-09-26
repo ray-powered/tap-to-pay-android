@@ -26,6 +26,7 @@ import com.yumedev.taptopayandroid.presentation.ui.components.CustomTabSelector
 import com.yumedev.taptopayandroid.presentation.ui.components.DetailSearchBar
 import com.yumedev.taptopayandroid.presentation.ui.components.SimplifiedCardView
 import com.yumedev.taptopayandroid.presentation.ui.components.TagCardContent
+import com.yumedev.taptopayandroid.presentation.ui.components.TransactionOverviewCard
 import com.yumedev.taptopayandroid.presentation.viewmodel.CardDetailViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -117,6 +118,12 @@ fun TagsAndAidTab(
         contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
+        if (searchQuery.isEmpty()) {
+            item(key = "transaction_overview") {
+                TransactionOverviewCard(analysis = emvCardData.transactionAnalysis)
+            }
+        }
+
         filteredCategories.entries.forEach { (category, tags) ->
             item(key = "category_$category") {
                 Column {

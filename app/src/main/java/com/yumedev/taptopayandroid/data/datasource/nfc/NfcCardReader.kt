@@ -608,9 +608,16 @@ class NfcCardReader @Inject constructor(
 
         return when {
             sw1 == 0x90 && sw2 == 0x00 -> "OK"
+            sw1 == 0x69 && sw2 == 0x86 -> "Command not allowed — See Phone (CDCVM required)"
+            sw1 == 0x69 && sw2 == 0x85 -> "Conditions of use not satisfied (Device locked or auth required)"
+            sw1 == 0x69 && sw2 == 0x84 -> "Switch interface (Try contact / insert card)"
+            sw1 == 0x69 && sw2 == 0x83 -> "Authentication method blocked"
+            sw1 == 0x63 && sw2 == 0x00 -> "Authentication failed"
             sw1 == 0x6A && sw2 == 0x82 -> "File not found"
             sw1 == 0x6A && sw2 == 0x81 -> "Function not supported"
-            sw1 == 0x69 && sw2 == 0x85 -> "Conditions not satisfied"
+            sw1 == 0x6A && sw2 == 0x80 -> "Incorrect parameters in data field"
+            sw1 == 0x6A && sw2 == 0x86 -> "Incorrect P1-P2 parameters"
+            sw1 == 0x6A && sw2 == 0x88 -> "Referenced data not found"
             sw1 == 0x6D && sw2 == 0x00 -> "Instruction not supported"
             sw1 == 0x6E && sw2 == 0x00 -> "Class not supported"
             else -> String.format("Error: %02X %02X", sw1, sw2)

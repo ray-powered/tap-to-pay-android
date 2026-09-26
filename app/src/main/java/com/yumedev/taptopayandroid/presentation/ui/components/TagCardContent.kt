@@ -27,6 +27,7 @@ import com.yumedev.taptopayandroid.R
 import com.yumedev.taptopayandroid.domain.model.EmvTag
 import com.yumedev.taptopayandroid.domain.repository.EmvTagInfoRepository
 import com.yumedev.taptopayandroid.util.AipDecoder
+import com.yumedev.taptopayandroid.util.TransactionResponseDecoder
 
 @Composable
 fun TagCardContent(
@@ -47,6 +48,18 @@ fun TagCardContent(
     val tagInfo = tagInfoRepository.getTagInfo(tag.tag)
     val isAipTag = tag.tag == "82"
     val aipDecoded = if (isAipTag) AipDecoder.decode(tag.value) else null
+
+    // Transaction response decoders
+    val cidDecoded = if (tag.tag == "9F27") TransactionResponseDecoder.decodeCid(tag.value) else null
+    val ctqDecoded = if (tag.tag == "9F6C") TransactionResponseDecoder.decodeCtq(tag.value) else null
+    val cvmResultsDecoded = if (tag.tag == "9F34") TransactionResponseDecoder.decodeCvmResults(tag.value) else null
+    val cvmListDecoded = if (tag.tag == "8E") TransactionResponseDecoder.decodeCvmList(tag.value) else null
+    val aucDecoded = if (tag.tag == "9F07") TransactionResponseDecoder.decodeAuc(tag.value) else null
+    val iadDecoded = if (tag.tag == "9F10") TransactionResponseDecoder.decodeIad(tag.value) else null
+    val tvrDecoded = if (tag.tag == "95") TransactionResponseDecoder.decodeTvr(tag.value) else null
+    val hasAnalysis = cidDecoded != null || ctqDecoded != null || cvmResultsDecoded != null ||
+        cvmListDecoded != null || aucDecoded != null || iadDecoded != null || tvrDecoded != null
+    var showAnalysis by remember { mutableStateOf(false) }
 
     if (showInfoDialog && tagInfo != null) {
         TagInfoBottomSheet(
@@ -318,6 +331,36 @@ fun TagCardContent(
                 AipBitDecoder(aip = aipDecoded)
             }
         }
+
+        if (hasAnalysis) {
+            Spacer(modifier = Modifier.height(12.dp))
+
+            TextButton(
+                onClick = { showAnalysis = !showAnalysis },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(
+                    imageVector = if (showAnalysis) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                    text = "Decode Analysis",
+                    style = MaterialTheme.typography.labelMedium
+                )
+            }
+
+            if (showAnalysis) {
+                cidDecoded?.let { CidBitDecoder(cid = it) }
+                ctqDecoded?.let { CtqBitDecoder(ctq = it) }
+                cvmResultsDecoded?.let { CvmResultsBitDecoder(cvmResults = it) }
+                cvmListDecoded?.let { CvmListDecoder(cvmList = it) }
+                aucDecoded?.let { AucBitDecoder(auc = it) }
+                iadDecoded?.let { IadDecoder(iad = it) }
+                tvrDecoded?.let { TvrBitDecoder(tvr = it) }
+            }
+        }
     }
 }
 
@@ -338,6 +381,12 @@ private fun getTagIcon(tagId: String): ImageVector {
         "8C", "8D" -> Icons.AutoMirrored.Filled.List // CDOL
         "9F38" -> Icons.AutoMirrored.Filled.ListAlt // PDOL
         "94" -> Icons.Default.Folder // AFL
+        "9F6C" -> Icons.Default.Contactless // CTQ
+        "8E" -> Icons.Default.Verified // CVM List
+        "9F34" -> Icons.Default.VerifiedUser // CVM Results
+        "9F07" -> Icons.Default.Security // AUC
+        "9F10" -> Icons.Default.AccountBalance // IAD
+        "95" -> Icons.Default.FactCheck // TVR
         else -> Icons.Default.Tag
     }
 }
@@ -351,7 +400,7 @@ enum class TagImportance {
 private fun getTagImportance(tagId: String): TagImportance {
     return when (tagId) {
         "5A", "5F20", "5F24", "57" -> TagImportance.CRITICAL
-        "4F", "50", "9F26", "9F27", "9F36" -> TagImportance.HIGH
+        "4F", "50", "9F26", "9F27", "9F36", "9F6C", "8E", "9F34", "9F07", "9F10", "95" -> TagImportance.HIGH
         else -> TagImportance.NORMAL
     }
 }

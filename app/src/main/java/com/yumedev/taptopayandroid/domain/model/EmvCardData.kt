@@ -1,12 +1,18 @@
 package com.yumedev.taptopayandroid.domain.model
 
+import com.yumedev.taptopayandroid.util.TransactionResponseDecoder
+
 //Complete EMV card data including application info, transaction data, cardholder data, APDU commands, and raw tags
 data class EmvCardData(
     val applicationInfo: ApplicationInfo,
     val transactionData: TransactionData,
     val cardholderData: CardholderData,
     val apduCommands: List<ApduCommand> = emptyList(),
-    val additionalTags: Map<String, EmvTag> = emptyMap()
+    val additionalTags: Map<String, EmvTag> = emptyMap(),
+    val transactionAnalysis: TransactionAnalysisResult = TransactionResponseDecoder.analyzeTransaction(
+        tags = additionalTags,
+        apduCommands = apduCommands
+    )
 ) {
     // Convenience property to get card type
     val cardType: CardType
@@ -32,7 +38,12 @@ data class EmvCardData(
 
                 tag.tag.startsWith("9F02") || tag.tag.startsWith("5F2A") ||
                 tag.tag.startsWith("9A") || tag.tag.startsWith("9C") ||
-                tag.tag.startsWith("9F36") || tag.tag.startsWith("9F37") -> "Transaction Data"
+                tag.tag.startsWith("9F36") || tag.tag.startsWith("9F37") ||
+                tag.tag.startsWith("9F26") || tag.tag.startsWith("9F27") ||
+                tag.tag.startsWith("9F6C") || tag.tag.startsWith("9F34") ||
+                tag.tag.startsWith("8E") || tag.tag.startsWith("9F07") ||
+                tag.tag.startsWith("9F10") || tag.tag.startsWith("95") ||
+                tag.tag.startsWith("9B") -> "Transaction Data"
 
                 tag.tag.startsWith("5A") || tag.tag.startsWith("5F24") ||
                 tag.tag.startsWith("5F20") || tag.tag.startsWith("57") ||

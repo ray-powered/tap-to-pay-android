@@ -22,6 +22,11 @@ class EmvTagParser @Inject constructor(
             "9C" -> decodeTransactionType(value)
             "9F36" -> decodeAtc(value)
             "50", "5F20", "9F0B" -> decodeAscii(value)
+            "9F27" -> decodeCidSummary(value)
+            "9F34" -> decodeCvmResultsSummary(value)
+            "9F07" -> decodeAucSummary(value)
+            "9F6C" -> decodeCtqSummary(value)
+            "95" -> decodeTvrSummary(value)
             else -> null
         }
 
@@ -343,6 +348,78 @@ class EmvTagParser @Inject constructor(
         return value.toString(Charsets.US_ASCII).trim()
     }
 
+    private fun decodeCidSummary(value: ByteArray): String {
+        if (value.isEmpty()) return "Unknown"
+        val b = value[0].toInt() and 0xFF
+        return when (b and 0xC0) {
+            0x00 -> "AAC — Transaction Declined"
+            0x40 -> "TC — Approved Offline"
+            0x80 -> "ARQC — Go Online"
+            else -> "Unknown (0x%02X)".format(b)
+        }
+    }
+
+    private fun decodeCvmResultsSummary(value: ByteArray): String {
+        if (value.size < 3) return "Unknown"
+        val method = value[0].toInt() and 0x3F
+        val result = value[2].toInt() and 0xFF
+        val methodName = when (method) {
+            0x00 -> "Fail CVM"
+            0x01 -> "Plaintext PIN by ICC"
+            0x02 -> "Online PIN"
+            0x03 -> "Plaintext PIN + Signature"
+            0x04 -> "Enciphered PIN by ICC"
+            0x05 -> "Enciphered PIN + Signature"
+            0x1E -> "Signature"
+            0x1F -> "No CVM Required"
+            0x20 -> "No CVM (mobile)"
+            else -> "Method 0x%02X".format(method)
+        }
+        val resultName = when (result) {
+            0x02 -> "Successful"
+            0x01 -> "Failed"
+            else -> "Unknown"
+        }
+        return "$methodName — $resultName"
+    }
+
+    private fun decodeAucSummary(value: ByteArray): String {
+        if (value.size < 2) return "Unknown"
+        val b1 = value[0].toInt() and 0xFF
+        val allowed = mutableListOf<String>()
+        if ((b1 and 0x20) != 0) allowed.add("Domestic")
+        if ((b1 and 0x10) != 0) allowed.add("International")
+        if ((b1 and 0x80) != 0) allowed.add("Cash")
+        if ((b1 and 0x02) != 0) allowed.add("ATM")
+        return if (allowed.isEmpty()) "Restricted" else allowed.joinToString(", ")
+    }
+
+    private fun decodeCtqSummary(value: ByteArray): String {
+        if (value.size < 2) return "Unknown"
+        val b1 = value[0].toInt() and 0xFF
+        val flags = mutableListOf<String>()
+        if ((b1 and 0x80) != 0) flags.add("Online PIN")
+        if ((b1 and 0x40) != 0) flags.add("Signature")
+        if ((b1 and 0x10) != 0) flags.add("Switch to Contact")
+        if ((b1 and 0x04) != 0) flags.add("CDA")
+        return if (flags.isEmpty()) "No special requirements" else flags.joinToString(", ")
+    }
+
+    private fun decodeTvrSummary(value: ByteArray): String {
+        if (value.size < 5) return "Unknown"
+        val isAllZero = value.all { it.toInt() == 0 }
+        if (isAllZero) return "All checks passed"
+        var issueCount = 0
+        for (b in value) {
+            var byte = b.toInt() and 0xFF
+            while (byte != 0) {
+                issueCount += byte and 1
+                byte = byte shr 1
+            }
+        }
+        return "$issueCount issue(s) detected"
+    }
+
     private fun parsePdolDescription(pdolBytes: ByteArray): String {
         return "PDOL with ${pdolBytes.size} bytes"
     }
@@ -440,8 +517,11 @@ class EmvTagParser @Inject constructor(
         "9F4A" to TagDefinition("9F4A", "Static Data Authentication Tag List", "SDA tag list"),
         "9F4C" to TagDefinition("9F4C", "ICC Dynamic Number", "Dynamic number from card"),
         "9F4D" to TagDefinition("9F4D", "Log Entry", "Transaction log entry"),
+        "9F6C" to TagDefinition("9F6C", "Card Transaction Qualifiers", "Contactless card requirements (PIN, signature, etc.)"),
         "9F6E" to TagDefinition("9F6E", "Form Factor Indicator", "Device form factor"),
-        "9F7C" to TagDefinition("9F7C", "Merchant Custom Data", "Custom data from merchant")
+        "9F7C" to TagDefinition("9F7C", "Merchant Custom Data", "Custom data from merchant"),
+        "95" to TagDefinition("95", "Terminal Verification Results", "Terminal risk management check results"),
+        "9B" to TagDefinition("9B", "Transaction Status Information", "Transaction processing status")
         )
 
         private val CURRENCY_CODES = mapOf(

@@ -25,6 +25,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Fingerprint
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -117,8 +118,15 @@ fun SuccessScreen(
             // Success check icon in circle
             val configuration = LocalConfiguration.current
             val screenWidth = configuration.screenWidthDp.dp
+            val analysis = emvCardData.transactionAnalysis
             val iconSize = (screenWidth * 0.35f).coerceAtMost(150.dp)
-            val successColor = if (isDarkTheme) md_dark_success else md_light_success
+            val successColor = when {
+                analysis.requiresScreenCheck -> MaterialTheme.colorScheme.tertiary
+                analysis.isDeclined -> MaterialTheme.colorScheme.error
+                isDarkTheme -> md_dark_success
+                else -> md_light_success
+            }
+            val statusIcon = if (analysis.requiresScreenCheck) Icons.Default.Fingerprint else Icons.Default.Check
 
             Box(
                 modifier = Modifier
@@ -128,8 +136,8 @@ fun SuccessScreen(
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    imageVector = Icons.Default.Check,
-                    contentDescription = "Success",
+                    imageVector = statusIcon,
+                    contentDescription = if (analysis.requiresScreenCheck) "See Phone" else "Success",
                     modifier = Modifier.size(iconSize * 0.5f),
                     tint = Color.White
                 )
@@ -137,16 +145,26 @@ fun SuccessScreen(
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            // "Tarjeta leída" message
+            // Card read / See phone message
             Text(
-                text = stringResource(id = R.string.card_read),
+                text = if (analysis.requiresScreenCheck) "See Phone Screen" else stringResource(id = R.string.card_read),
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold,
                 textAlign = TextAlign.Center,
                 color = MaterialTheme.colorScheme.onBackground
             )
 
-            Spacer(modifier = Modifier.height(24.dp))
+            if (analysis.requiresScreenCheck) {
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    text = "Please authenticate on device and tap again",
+                    style = MaterialTheme.typography.bodyMedium,
+                    textAlign = TextAlign.Center,
+                    color = MaterialTheme.colorScheme.tertiary
+                )
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
 
             Surface(
                 modifier = Modifier.clip(RoundedCornerShape(16.dp)),
@@ -168,6 +186,31 @@ fun SuccessScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            Surface(
+                modifier = Modifier.clip(RoundedCornerShape(12.dp)),
+                color = when (analysis.decision) {
+                    com.yumedev.taptopayandroid.domain.model.TransactionDecision.APPROVED_OFFLINE -> MaterialTheme.colorScheme.primaryContainer
+                    com.yumedev.taptopayandroid.domain.model.TransactionDecision.SEE_PHONE_CDCVM -> MaterialTheme.colorScheme.tertiaryContainer
+                    com.yumedev.taptopayandroid.domain.model.TransactionDecision.DECLINED_BY_CARD -> MaterialTheme.colorScheme.errorContainer
+                    else -> MaterialTheme.colorScheme.secondaryContainer
+                }
+            ) {
+                Text(
+                    text = analysis.decisionTitle,
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
+                    color = when (analysis.decision) {
+                        com.yumedev.taptopayandroid.domain.model.TransactionDecision.APPROVED_OFFLINE -> MaterialTheme.colorScheme.onPrimaryContainer
+                        com.yumedev.taptopayandroid.domain.model.TransactionDecision.SEE_PHONE_CDCVM -> MaterialTheme.colorScheme.onTertiaryContainer
+                        com.yumedev.taptopayandroid.domain.model.TransactionDecision.DECLINED_BY_CARD -> MaterialTheme.colorScheme.onErrorContainer
+                        else -> MaterialTheme.colorScheme.onSecondaryContainer
+                    }
+                )
             }
 
             Spacer(modifier = Modifier.height(48.dp))
