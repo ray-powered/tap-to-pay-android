@@ -39,7 +39,7 @@ fun PrimaryButton(
             disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
             disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant
         ),
-        contentPadding = PaddingValues(16.dp)
+        contentPadding = PaddingValues(horizontal = 24.dp, vertical = 12.dp)
     ) {
         Row(
             horizontalArrangement = Arrangement.Center,
@@ -50,17 +50,15 @@ fun PrimaryButton(
                     imageVector = leadingIcon,
                     contentDescription = null,
                     modifier = Modifier
-                        .padding(end = 16.dp)
-                        .size(24.dp)
+                        .padding(end = 12.dp)
+                        .size(22.dp)
                 )
             }
             Text(
                 text = text,
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
-                modifier = Modifier.then(
-                    if (leadingIcon != null) Modifier else Modifier
-                )
+                maxLines = 1
             )
         }
     }

@@ -12,6 +12,8 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -38,6 +40,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.yumedev.taptopayandroid.R
@@ -144,78 +147,95 @@ fun HomeScreen(
         )
 
         Column(
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(top = 16.dp, bottom = 8.dp)
         ) {
+            Spacer(modifier = Modifier.weight(0.4f))
+
+            // Amount and Terminal Status Header
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp)
+            ) {
+                val amountFontSize = when {
+                    displayAmount.length <= 6 -> 56.sp
+                    displayAmount.length <= 9 -> 44.sp
+                    else -> 36.sp
+                }
+
+                Text(
+                    text = "${terminalConfig.currencySymbol}$displayAmount",
+                    style = MaterialTheme.typography.displayLarge,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = amountFontSize,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+
+                Spacer(modifier = Modifier.height(6.dp))
+
+                // Interactive Terminal Status Pill
+                Surface(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(16.dp))
+                        .clickable { showQuickSwitchSheet = true },
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "${terminalConfig.currencySymbol} ${terminalConfig.currencyCode}  ·  ${terminalConfig.transactionTypeDisplayName}  ·  TTQ: ${terminalConfig.formattedTtq}",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontWeight = FontWeight.Medium,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f, fill = false)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Icon(
+                            imageVector = Icons.Default.Edit,
+                            contentDescription = "Edit Terminal Config",
+                            modifier = Modifier.size(12.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+
             Spacer(modifier = Modifier.weight(1f))
 
-        val amountFontSize = when {
-            displayAmount.length <= 9 -> 80.sp
-            else -> 64.sp
-        }
+            Keypad(
+                onNumberClick = { number ->
+                    if (rawDigits.isEmpty() && number == 0) return@Keypad
+                    if (rawDigits.length < 9) rawDigits += number.toString()
+                },
+                onClear = {
+                    rawDigits = ""
+                },
+                onBackspace = {
+                    rawDigits = rawDigits.dropLast(1)
+                }
+            )
 
-        Text(
-            text = "${terminalConfig.currencySymbol}$displayAmount",
-            style = MaterialTheme.typography.displayLarge,
-            modifier = Modifier.padding(start = 24.dp, end = 24.dp, top = 24.dp, bottom = 4.dp),
-            fontWeight = FontWeight.Bold,
-            fontSize = amountFontSize,
-            maxLines = 1
-        )
+            Spacer(modifier = Modifier.weight(0.4f))
 
-        // Interactive Terminal Status Pill
-        Surface(
-            modifier = Modifier
-                .padding(horizontal = 24.dp)
-                .clip(RoundedCornerShape(16.dp))
-                .clickable { showQuickSwitchSheet = true },
-            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f),
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
-        ) {
-            Row(
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "${terminalConfig.currencySymbol} ${terminalConfig.currencyCode}  ·  ${terminalConfig.transactionTypeDisplayName}  ·  TTQ: ${terminalConfig.formattedTtq}",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontWeight = FontWeight.Medium
-                )
-                Spacer(modifier = Modifier.width(6.dp))
-                Icon(
-                    imageVector = Icons.Default.Edit,
-                    contentDescription = "Edit Terminal Config",
-                    modifier = Modifier.size(12.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        }
+            PrimaryButton(
+                text = stringResource(R.string.start_payment_button),
+                onClick = { onGeneratePayment(displayAmount) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 4.dp),
+                isEnable = displayAmount != "0.00",
+                leadingIcon = Icons.Default.Nfc
+            )
 
-        Spacer(modifier = Modifier.weight(1f))
-
-        Keypad(
-            onNumberClick = { number ->
-                if (rawDigits.isEmpty() && number == 0) return@Keypad
-                if (rawDigits.length < 9) rawDigits += number.toString()
-            },
-            onClear = {
-                rawDigits = ""
-            },
-            onBackspace = {
-                rawDigits = rawDigits.dropLast(1)
-            }
-        )
-
-        Spacer(modifier = Modifier.weight(0.3f))
-
-        PrimaryButton(
-            text = stringResource(R.string.start_payment_button),
-            onClick = { onGeneratePayment(displayAmount) },
-            modifier = Modifier.padding(16.dp),
-            isEnable = displayAmount != "0.00",
-            leadingIcon = Icons.Default.Nfc
-        )
-            Spacer(modifier = Modifier.weight(0.3f))
+            Spacer(modifier = Modifier.height(4.dp))
         }
 
         if (showQuickSwitchSheet) {

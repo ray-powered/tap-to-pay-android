@@ -50,7 +50,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -560,12 +562,21 @@ private fun SettingsItemNavigable(
             )
         }
         if (endText != null) {
-            Text(
-                text = endText,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.primary,
-                fontWeight = FontWeight.Medium
-            )
+            Spacer(modifier = Modifier.width(12.dp))
+            Surface(
+                shape = RoundedCornerShape(8.dp),
+                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
+            ) {
+                Text(
+                    text = endText,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.SemiBold,
+                    fontFamily = if (endText.any { it.isDigit() }) FontFamily.Monospace else null,
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                    maxLines = 1
+                )
+            }
             if (showChevron) {
                 Spacer(modifier = Modifier.width(4.dp))
             }
@@ -622,8 +633,8 @@ private fun ThemeSelector(
     modifier: Modifier = Modifier
 ) {
     Surface(
-        modifier = modifier.height(40.dp),
-        shape = RoundedCornerShape(20.dp),
+        modifier = modifier.height(42.dp),
+        shape = RoundedCornerShape(21.dp),
         border = BorderStroke(
             1.dp,
             MaterialTheme.colorScheme.outlineVariant
@@ -641,8 +652,8 @@ private fun ThemeSelector(
                 onClick = { onThemeSelected(ThemeOption.LIGHT) },
                 modifier = Modifier.weight(1f),
                 cornerRadius = RoundedCornerShape(
-                    topStart = 20.dp,
-                    bottomStart = 20.dp,
+                    topStart = 21.dp,
+                    bottomStart = 21.dp,
                     topEnd = 0.dp,
                     bottomEnd = 0.dp
                 )
@@ -680,8 +691,8 @@ private fun ThemeSelector(
                 cornerRadius = RoundedCornerShape(
                     topStart = 0.dp,
                     bottomStart = 0.dp,
-                    topEnd = 20.dp,
-                    bottomEnd = 20.dp
+                    topEnd = 21.dp,
+                    bottomEnd = 21.dp
                 )
             )
         }
@@ -705,7 +716,9 @@ private fun ThemeOption(
         color = if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent
     ) {
         Box(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 4.dp),
             contentAlignment = Alignment.Center
         ) {
             Row(
@@ -725,7 +738,9 @@ private fun ThemeOption(
                     text = text,
                     style = MaterialTheme.typography.bodySmall,
                     fontWeight = if (isSelected) FontWeight.Medium else FontWeight.Normal,
-                    color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+                    color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
         }

@@ -77,7 +77,7 @@ fun SquareKey(
 
     Box(
         modifier = modifier
-            .height(80.dp)
+            .height(56.dp)
             .border(
                 0.5.dp,
                 MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
@@ -92,7 +92,7 @@ fun SquareKey(
             Icon(
                 painter = painterResource(R.drawable.delete),
                 contentDescription = "Delete",
-                modifier = Modifier.size(26.dp),
+                modifier = Modifier.size(22.dp),
                 tint = MaterialTheme.colorScheme.primary
             )
         } else {

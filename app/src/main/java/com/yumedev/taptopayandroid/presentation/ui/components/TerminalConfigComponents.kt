@@ -2,6 +2,7 @@ package com.yumedev.taptopayandroid.presentation.ui.components
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -90,7 +91,7 @@ fun CurrencySelectionDialog(
                                 }
                             )
                             Spacer(modifier = Modifier.width(8.dp))
-                            Column {
+                            Column(modifier = Modifier.weight(1f)) {
                                 Text(
                                     text = preset.name,
                                     style = MaterialTheme.typography.bodyMedium,
@@ -124,7 +125,8 @@ fun CurrencySelectionDialog(
                             Text(
                                 text = "Custom Currency Code",
                                 style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = if (isCustom) FontWeight.Bold else FontWeight.Normal
+                                fontWeight = if (isCustom) FontWeight.Bold else FontWeight.Normal,
+                                modifier = Modifier.weight(1f)
                             )
                         }
 
@@ -225,7 +227,7 @@ fun CountrySelectionDialog(
                                 }
                             )
                             Spacer(modifier = Modifier.width(8.dp))
-                            Column {
+                            Column(modifier = Modifier.weight(1f)) {
                                 Text(
                                     text = preset.name,
                                     style = MaterialTheme.typography.bodyMedium,
@@ -259,7 +261,8 @@ fun CountrySelectionDialog(
                             Text(
                                 text = "Custom Country Code",
                                 style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = if (isCustom) FontWeight.Bold else FontWeight.Normal
+                                fontWeight = if (isCustom) FontWeight.Bold else FontWeight.Normal,
+                                modifier = Modifier.weight(1f)
                             )
                         }
 
@@ -352,7 +355,7 @@ fun TransactionTypeSelectionDialog(
                                 }
                             )
                             Spacer(modifier = Modifier.width(8.dp))
-                            Column {
+                            Column(modifier = Modifier.weight(1f)) {
                                 Text(
                                     text = preset.name,
                                     style = MaterialTheme.typography.bodyMedium,
@@ -386,7 +389,8 @@ fun TransactionTypeSelectionDialog(
                             Text(
                                 text = "Custom Type Code (Hex)",
                                 style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = if (isCustom) FontWeight.Bold else FontWeight.Normal
+                                fontWeight = if (isCustom) FontWeight.Bold else FontWeight.Normal,
+                                modifier = Modifier.weight(1f)
                             )
                         }
 
@@ -455,7 +459,7 @@ fun TtqEditorDialog(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(max = 480.dp)
+                    .heightIn(max = 420.dp)
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
@@ -483,19 +487,30 @@ fun TtqEditorDialog(
                         Column(modifier = Modifier.padding(10.dp)) {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
                                     text = preset.name,
                                     style = MaterialTheme.typography.bodyMedium,
-                                    fontWeight = FontWeight.SemiBold
+                                    fontWeight = FontWeight.SemiBold,
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .padding(end = 8.dp)
                                 )
-                                Text(
-                                    text = preset.hex.chunked(2).joinToString(" "),
-                                    style = MaterialTheme.typography.labelMedium,
-                                    fontFamily = FontFamily.Monospace,
-                                    color = MaterialTheme.colorScheme.primary
-                                )
+                                Surface(
+                                    shape = RoundedCornerShape(4.dp),
+                                    color = MaterialTheme.colorScheme.surfaceVariant
+                                ) {
+                                    Text(
+                                        text = preset.hex.chunked(2).joinToString(" "),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontFamily = FontFamily.Monospace,
+                                        color = MaterialTheme.colorScheme.primary,
+                                        fontWeight = FontWeight.Bold,
+                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                    )
+                                }
                             }
                             Text(
                                 text = preset.description,
@@ -659,6 +674,7 @@ private fun TtqSwitchItem(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
+        Spacer(modifier = Modifier.width(12.dp))
         Switch(
             checked = checked,
             onCheckedChange = onCheckedChange
@@ -690,6 +706,7 @@ fun TerminalCapabilitiesDialog(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .heightIn(max = 420.dp)
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
@@ -713,19 +730,30 @@ fun TerminalCapabilitiesDialog(
                         Column(modifier = Modifier.padding(10.dp)) {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
                                     text = preset.name,
                                     style = MaterialTheme.typography.bodyMedium,
-                                    fontWeight = FontWeight.SemiBold
+                                    fontWeight = FontWeight.SemiBold,
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .padding(end = 8.dp)
                                 )
-                                Text(
-                                    text = preset.hex.chunked(2).joinToString(" "),
-                                    style = MaterialTheme.typography.labelMedium,
-                                    fontFamily = FontFamily.Monospace,
-                                    color = MaterialTheme.colorScheme.primary
-                                )
+                                Surface(
+                                    shape = RoundedCornerShape(4.dp),
+                                    color = MaterialTheme.colorScheme.surfaceVariant
+                                ) {
+                                    Text(
+                                        text = preset.hex.chunked(2).joinToString(" "),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontFamily = FontFamily.Monospace,
+                                        color = MaterialTheme.colorScheme.primary,
+                                        fontWeight = FontWeight.Bold,
+                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                    )
+                                }
                             }
                             Text(
                                 text = preset.description,
@@ -785,6 +813,7 @@ fun TerminalTypeDialog(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .heightIn(max = 420.dp)
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
@@ -811,7 +840,8 @@ fun TerminalTypeDialog(
                             Text(
                                 text = preset.name,
                                 style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                modifier = Modifier.weight(1f)
                             )
                         }
                     }
@@ -870,6 +900,7 @@ fun MerchantDetailsDialog(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .heightIn(max = 420.dp)
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
@@ -963,10 +994,12 @@ fun TerminalQuickSwitchBottomSheet(
             )
 
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState()),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                TerminalConfig.Currencies.take(4).forEach { currency ->
+                TerminalConfig.Currencies.forEach { currency ->
                     val isSelected = terminalConfig.currencyCode == currency.code
                     FilterChip(
                         selected = isSelected,
@@ -985,10 +1018,12 @@ fun TerminalQuickSwitchBottomSheet(
             )
 
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState()),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                TerminalConfig.TransactionTypes.take(4).forEach { type ->
+                TerminalConfig.TransactionTypes.forEach { type ->
                     val isSelected = terminalConfig.transactionType.equals(type.code, ignoreCase = true)
                     FilterChip(
                         selected = isSelected,
