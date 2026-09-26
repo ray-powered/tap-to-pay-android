@@ -14,5 +14,6 @@ enum class CardType {
     AMEX,
     DISCOVER,
     MAESTRO,
+    UNIONPAY,
     UNKNOWN
 }

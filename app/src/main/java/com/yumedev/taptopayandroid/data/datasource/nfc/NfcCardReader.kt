@@ -80,37 +80,95 @@ class NfcCardReader @Inject constructor(
 
             SecureLogger.dSecure(TAG, "PPSE Response: ${ppseResponse.toHexString()}")
 
-            if (!isSuccessResponse(ppseResponse)) {
-                return@withContext Result.failure(Exception("Failed to select PPSE"))
+            var aidBytes: ByteArray? = null
+            var aidResponse: ByteArray? = null
+
+            if (isSuccessResponse(ppseResponse)) {
+                // Step 2: Extract AID from PPSE response
+                val extractedAid = extractAID(ppseResponse)
+                if (extractedAid != null) {
+                    SecureLogger.d(TAG) { "Found AID in PPSE: ${extractedAid.toHexString()}" }
+
+                    // Step 3: Select the payment application using AID
+                    val selectAidCommand = buildSelectCommand(extractedAid)
+                    val resp = isoDep.transceive(selectAidCommand)
+
+                    apduCommands.add(ApduCommand(
+                        sequence = commandSequence++,
+                        name = "SELECT AID",
+                        description = "Select payment application from PPSE",
+                        commandApdu = selectAidCommand.toHexString(),
+                        responseApdu = resp.toHexString(),
+                        statusWord = getStatusWord(resp),
+                        statusDescription = getStatusDescription(resp)
+                    ))
+
+                    SecureLogger.dSecure(TAG, "AID Response: ${resp.toHexString()}")
+                    if (isSuccessResponse(resp)) {
+                        aidBytes = extractedAid
+                        aidResponse = resp
+                    }
+                }
             }
 
-            // Step 2: Extract AID from PPSE response
-            val aidBytes = extractAID(ppseResponse) ?: return@withContext Result.failure(Exception("No AID found in PPSE response"))
-            SecureLogger.d(TAG) { "Found AID: ${aidBytes.toHexString()}" }
+            // Fallback: If PPSE directory selection failed or AID was not found
+            // (Standard for UnionPay / PBOC contactless cards without PPSE), probe candidate AIDs directly
+            if (aidBytes == null || aidResponse == null) {
+                SecureLogger.d(TAG) { "PPSE directory unavailable. Probing candidate AIDs directly." }
+                val candidateAids = listOf(
+                    // UnionPay Debit (qPBOC)
+                    byteArrayOf(0xA0.toByte(), 0x00.toByte(), 0x00.toByte(), 0x03.toByte(), 0x33.toByte(), 0x01.toByte(), 0x01.toByte(), 0x01.toByte()),
+                    // UnionPay Credit
+                    byteArrayOf(0xA0.toByte(), 0x00.toByte(), 0x00.toByte(), 0x03.toByte(), 0x33.toByte(), 0x01.toByte(), 0x01.toByte(), 0x02.toByte()),
+                    // UnionPay Quasi-Credit
+                    byteArrayOf(0xA0.toByte(), 0x00.toByte(), 0x00.toByte(), 0x03.toByte(), 0x33.toByte(), 0x01.toByte(), 0x01.toByte(), 0x03.toByte()),
+                    // UnionPay Electronic Cash
+                    byteArrayOf(0xA0.toByte(), 0x00.toByte(), 0x00.toByte(), 0x03.toByte(), 0x33.toByte(), 0x01.toByte(), 0x01.toByte(), 0x06.toByte()),
+                    // Visa Contactless
+                    byteArrayOf(0xA0.toByte(), 0x00.toByte(), 0x00.toByte(), 0x00.toByte(), 0x03.toByte(), 0x10.toByte(), 0x10.toByte()),
+                    // Mastercard Contactless
+                    byteArrayOf(0xA0.toByte(), 0x00.toByte(), 0x00.toByte(), 0x00.toByte(), 0x04.toByte(), 0x10.toByte(), 0x10.toByte()),
+                    // American Express
+                    byteArrayOf(0xA0.toByte(), 0x00.toByte(), 0x00.toByte(), 0x00.toByte(), 0x25.toByte(), 0x01.toByte())
+                )
 
-            // Step 3: Select the payment application using AID
-            val selectAidCommand = buildSelectCommand(aidBytes)
-            val aidResponse = isoDep.transceive(selectAidCommand)
+                for (candidate in candidateAids) {
+                    val selectCmd = buildSelectCommand(candidate)
+                    val resp = try {
+                        isoDep.transceive(selectCmd)
+                    } catch (e: Exception) {
+                        SecureLogger.d(TAG) { "Candidate AID probe error: ${e.message}" }
+                        null
+                    }
 
-            apduCommands.add(ApduCommand(
-                sequence = commandSequence++,
-                name = "SELECT AID",
-                description = "Select payment application",
-                commandApdu = selectAidCommand.toHexString(),
-                responseApdu = aidResponse.toHexString(),
-                statusWord = getStatusWord(aidResponse),
-                statusDescription = getStatusDescription(aidResponse)
-            ))
-
-            SecureLogger.dSecure(TAG, "AID Response: ${aidResponse.toHexString()}")
-
-            if (!isSuccessResponse(aidResponse)) {
-                return@withContext Result.failure(Exception("Failed to select application"))
+                    if (resp != null && isSuccessResponse(resp)) {
+                        apduCommands.add(ApduCommand(
+                            sequence = commandSequence++,
+                            name = "SELECT AID",
+                            description = "Direct candidate AID selected: ${candidate.toHexString()}",
+                            commandApdu = selectCmd.toHexString(),
+                            responseApdu = resp.toHexString(),
+                            statusWord = getStatusWord(resp),
+                            statusDescription = getStatusDescription(resp)
+                        ))
+                        aidBytes = candidate
+                        aidResponse = resp
+                        SecureLogger.d(TAG) { "Successfully selected candidate AID: ${candidate.toHexString()}" }
+                        break
+                    }
+                }
             }
+
+            if (aidBytes == null || aidResponse == null) {
+                return@withContext Result.failure(Exception("Failed to select payment application"))
+            }
+
+            val finalAidBytes = aidBytes
+            val finalAidResponse = aidResponse
 
             // Step 4: Get Processing Options (GPO)
             // Parse PDOL (Processing Options Data Object List) from AID response to build real EMV parameters
-            val pdol = findTag(aidResponse, 0x9F.toByte(), 0x38.toByte())
+            val pdol = findTag(finalAidResponse, 0x9F.toByte(), 0x38.toByte())
             val gpoCommand = if (pdol != null && pdol.isNotEmpty()) {
                 val dolItems = parseDol(pdol)
                 SecureLogger.d(TAG) { "Found PDOL (${dolItems.size} items): ${dolItems.joinToString { "${it.tag}:${it.length}B" }}" }
@@ -265,7 +323,7 @@ class NfcCardReader @Inject constructor(
                 if (alreadyHasCryptogram) {
                     SecureLogger.d(TAG) { "Cryptogram (9F26) already returned in GPO/records (Streamlined Contactless mode)" }
                 } else {
-                    val cdol1 = findTag(combinedRecords, 0x8C.toByte()) ?: findTag(aidResponse, 0x8C.toByte())
+                    val cdol1 = findTag(combinedRecords, 0x8C.toByte()) ?: findTag(finalAidResponse, 0x8C.toByte())
                     if (cdol1 != null && cdol1.size in 2..64) {
                         val cdolItems = parseDol(cdol1)
                         if (cdolItems.isNotEmpty()) {
@@ -310,7 +368,7 @@ class NfcCardReader @Inject constructor(
             }
 
             // Parse all data using EmvTagParser
-            val applicationInfo = emvTagParser.parseApplicationInfo(aidBytes, aidResponse)
+            val applicationInfo = emvTagParser.parseApplicationInfo(finalAidBytes, finalAidResponse)
             val transactionData = emvTagParser.parseTransactionData(allRecords, amountCents)
             val cardholderData = emvTagParser.parseCardholderData(allRecords)
 
@@ -548,7 +606,7 @@ class NfcCardReader @Inject constructor(
         while (i < response.size - 1) {
             if (response[i] == aidTag) {
                 val length = response[i + 1].toInt() and 0xFF
-                if (i + 2 + length <= response.size) {
+                if (length in 5..16 && i + 2 + length <= response.size) {
                     return response.copyOfRange(i + 2, i + 2 + length)
                 }
             }

@@ -184,7 +184,7 @@ fun TapToPayScreen(
                 horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                val schemes = listOf("VISA", "MASTERCARD", "AMEX", "DISCOVER", "PAY")
+                val schemes = listOf("VISA", "MASTERCARD", "UNIONPAY", "AMEX", "DISCOVER")
                 schemes.forEachIndexed { index, scheme ->
                     Text(
                         text = scheme,

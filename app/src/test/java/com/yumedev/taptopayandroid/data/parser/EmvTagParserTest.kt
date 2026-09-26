@@ -242,4 +242,50 @@ class EmvTagParserTest {
         assertThat(appInfo.pdol).isNotNull()
         assertThat(appInfo.pdol?.length).isAtLeast(1)
     }
+
+    @Test
+    fun `determineCardType identifies UnionPay by AID`() {
+        val unionPayDebitAid = byteArrayOf(0xA0.toByte(), 0x00, 0x00, 0x03, 0x33.toByte(), 0x01, 0x01, 0x01)
+        val appInfoDebit = parser.parseApplicationInfo(unionPayDebitAid, byteArrayOf())
+        assertThat(appInfoDebit.cardType).isEqualTo(CardType.UNIONPAY)
+
+        val unionPayCreditAid = byteArrayOf(0xA0.toByte(), 0x00, 0x00, 0x03, 0x33.toByte(), 0x01, 0x01, 0x02)
+        val appInfoCredit = parser.parseApplicationInfo(unionPayCreditAid, byteArrayOf())
+        assertThat(appInfoCredit.cardType).isEqualTo(CardType.UNIONPAY)
+    }
+
+    @Test
+    fun `determineCardType identifies UnionPay by application label`() {
+        val unknownAid = byteArrayOf(0xD2.toByte(), 0x76, 0x00, 0x00)
+        val label = "UNIONPAY DEBIT".toByteArray(Charsets.US_ASCII)
+        val response = byteArrayOf(0x50.toByte(), label.size.toByte()) + label
+
+        val appInfo = parser.parseApplicationInfo(unknownAid, response)
+        assertThat(appInfo.cardType).isEqualTo(CardType.UNIONPAY)
+    }
+
+    @Test
+    fun `EmvCardData fallback identifies UnionPay from PAN starting with 62 or 81`() {
+        val cardholderData62 = com.yumedev.taptopayandroid.domain.model.CardholderData(
+            pan = "6221261234567890",
+            panLastFour = "7890"
+        )
+        val emvCardData62 = com.yumedev.taptopayandroid.domain.model.EmvCardData(
+            applicationInfo = com.yumedev.taptopayandroid.domain.model.ApplicationInfo(cardType = CardType.UNKNOWN),
+            transactionData = com.yumedev.taptopayandroid.domain.model.TransactionData(),
+            cardholderData = cardholderData62
+        )
+        assertThat(emvCardData62.cardType).isEqualTo(CardType.UNIONPAY)
+
+        val cardholderData81 = com.yumedev.taptopayandroid.domain.model.CardholderData(
+            pan = "8100123456789012",
+            panLastFour = "9012"
+        )
+        val emvCardData81 = com.yumedev.taptopayandroid.domain.model.EmvCardData(
+            applicationInfo = com.yumedev.taptopayandroid.domain.model.ApplicationInfo(cardType = CardType.UNKNOWN),
+            transactionData = com.yumedev.taptopayandroid.domain.model.TransactionData(),
+            cardholderData = cardholderData81
+        )
+        assertThat(emvCardData81.cardType).isEqualTo(CardType.UNIONPAY)
+    }
 }

@@ -309,7 +309,7 @@ class EmvTagParser @Inject constructor(
     }
 
     private fun mapCurrencyCode(hexCode: String): String {
-        val code = hexCode.toIntOrNull(16) ?: return "Unknown"
+        val code = hexCode.toIntOrNull() ?: hexCode.toIntOrNull(16) ?: return "Unknown"
         return CURRENCY_CODES[code] ?: "Unknown ($hexCode)"
     }
 
@@ -345,7 +345,16 @@ class EmvTagParser @Inject constructor(
     }
 
     private fun decodeAscii(value: ByteArray): String {
-        return value.toString(Charsets.US_ASCII).trim()
+        return try {
+            val utf8 = String(value, Charsets.UTF_8).trim()
+            if (utf8.none { it == '\uFFFD' }) {
+                utf8
+            } else {
+                String(value, java.nio.charset.Charset.forName("GB18030")).trim()
+            }
+        } catch (_: Exception) {
+            value.toString(Charsets.US_ASCII).trim()
+        }
     }
 
     private fun decodeCidSummary(value: ByteArray): String {
@@ -425,25 +434,29 @@ class EmvTagParser @Inject constructor(
     }
 
     private fun determineCardType(aid: String, label: String?): CardType {
-        when {
-            aid.startsWith("A0000000031010") -> return CardType.VISA
-            aid.startsWith("A000000004") -> return CardType.MASTERCARD
-            aid.startsWith("A000000025") -> return CardType.AMEX
-            aid.startsWith("A0000001523010") -> return CardType.DISCOVER
-            aid.startsWith("A0000000043060") -> return CardType.MAESTRO
+        val typeByAid = when {
+            aid.startsWith("A000000333") -> CardType.UNIONPAY
+            aid.startsWith("A0000000031010") -> CardType.VISA
+            aid.startsWith("A000000004") -> CardType.MASTERCARD
+            aid.startsWith("A000000025") -> CardType.AMEX
+            aid.startsWith("A0000001523010") -> CardType.DISCOVER
+            aid.startsWith("A0000000043060") -> CardType.MAESTRO
+            else -> null
         }
+        if (typeByAid != null) return typeByAid
 
-        label?.uppercase()?.let {
-            when {
-                it.contains("VISA") -> return CardType.VISA
-                it.contains("MASTERCARD") || it.contains("MC") -> return CardType.MASTERCARD
-                it.contains("AMEX") || it.contains("AMERICAN EXPRESS") -> return CardType.AMEX
-                it.contains("DISCOVER") -> return CardType.DISCOVER
-                it.contains("MAESTRO") -> return CardType.MAESTRO
-            }
+        val upperLabel = label?.uppercase() ?: ""
+        return when {
+            upperLabel.contains("UNIONPAY") || upperLabel.contains("UNION PAY") ||
+                upperLabel.contains("CUP") || upperLabel.contains("PBOC") ||
+                upperLabel.contains("银联") -> CardType.UNIONPAY
+            upperLabel.contains("VISA") -> CardType.VISA
+            upperLabel.contains("MASTERCARD") || upperLabel.contains("MC") -> CardType.MASTERCARD
+            upperLabel.contains("AMEX") || upperLabel.contains("AMERICAN EXPRESS") -> CardType.AMEX
+            upperLabel.contains("DISCOVER") -> CardType.DISCOVER
+            upperLabel.contains("MAESTRO") -> CardType.MAESTRO
+            else -> CardType.UNKNOWN
         }
-
-        return CardType.UNKNOWN
     }
 
     private fun ByteArray.toHexString(): String {
@@ -525,12 +538,13 @@ class EmvTagParser @Inject constructor(
         )
 
         private val CURRENCY_CODES = mapOf(
-        840 to "USD (ISO 4217)",
-        978 to "EUR (ISO 4217)",
-        826 to "GBP (ISO 4217)",
-        484 to "MXN (ISO 4217)",
-        124 to "CAD (ISO 4217)",
-        392 to "JPY (ISO 4217)"
+            156 to "CNY (ISO 4217)",
+            840 to "USD (ISO 4217)",
+            978 to "EUR (ISO 4217)",
+            826 to "GBP (ISO 4217)",
+            484 to "MXN (ISO 4217)",
+            124 to "CAD (ISO 4217)",
+            392 to "JPY (ISO 4217)"
         )
 
         private val TRANSACTION_TYPES = mapOf(

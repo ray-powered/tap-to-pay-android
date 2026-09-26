@@ -16,7 +16,22 @@ data class EmvCardData(
 ) {
     // Convenience property to get card type
     val cardType: CardType
-        get() = applicationInfo.cardType
+        get() {
+            if (applicationInfo.cardType != CardType.UNKNOWN) {
+                return applicationInfo.cardType
+            }
+            val pan = cardholderData.pan
+            return when {
+                pan.startsWith("62") || pan.startsWith("81") -> CardType.UNIONPAY
+                pan.startsWith("4") -> CardType.VISA
+                pan.startsWith("51") || pan.startsWith("52") || pan.startsWith("53") ||
+                    pan.startsWith("54") || pan.startsWith("55") ||
+                    (pan.length >= 4 && (pan.take(4).toIntOrNull() ?: 0) in 2221..2720) -> CardType.MASTERCARD
+                pan.startsWith("34") || pan.startsWith("37") -> CardType.AMEX
+                pan.startsWith("6011") || pan.startsWith("65") -> CardType.DISCOVER
+                else -> CardType.UNKNOWN
+            }
+        }
 
     // Get all tags grouped by category
     fun getTagsByCategory(): Map<String, List<EmvTag>> {
