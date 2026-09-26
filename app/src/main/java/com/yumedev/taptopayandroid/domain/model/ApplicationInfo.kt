@@ -2,8 +2,8 @@ package com.yumedev.taptopayandroid.domain.model
 
 //EMV Application Information from tags 4F, 50, 87, 9F38
 data class ApplicationInfo(
-    val aid: String, // Tag 4F - Application Identifier (hex)
-    val aidBytes: ByteArray,
+    val aid: String = "", // Tag 4F - Application Identifier (hex)
+    val aidBytes: ByteArray = byteArrayOf(),
     val applicationLabel: String? = null, // Tag 50 - Application Label (ASCII)
     val priorityIndicator: Int? = null, // Tag 87 - Priority (1 = highest)
     val pdol: String? = null, // Tag 9F38 - Processing Data Object List (hex)

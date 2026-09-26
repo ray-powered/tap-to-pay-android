@@ -1,7 +1,11 @@
 package com.yumedev.taptopayandroid.data.parser
 
 import com.google.common.truth.Truth.assertThat
+import com.yumedev.taptopayandroid.domain.model.ApplicationInfo
+import com.yumedev.taptopayandroid.domain.model.CardholderData
 import com.yumedev.taptopayandroid.domain.model.CardType
+import com.yumedev.taptopayandroid.domain.model.EmvCardData
+import com.yumedev.taptopayandroid.domain.model.TransactionData
 import com.yumedev.taptopayandroid.domain.usecase.ValidatePanUseCase
 import org.junit.Test
 
@@ -266,24 +270,36 @@ class EmvTagParserTest {
 
     @Test
     fun `EmvCardData fallback identifies UnionPay from PAN starting with 62 or 81`() {
-        val cardholderData62 = com.yumedev.taptopayandroid.domain.model.CardholderData(
+        val cardholderData62 = CardholderData(
             pan = "6221261234567890",
-            panLastFour = "7890"
+            panLastFour = "7890",
+            expirationDate = "261231",
+            expirationDateDisplay = "12/26"
         )
-        val emvCardData62 = com.yumedev.taptopayandroid.domain.model.EmvCardData(
-            applicationInfo = com.yumedev.taptopayandroid.domain.model.ApplicationInfo(cardType = CardType.UNKNOWN),
-            transactionData = com.yumedev.taptopayandroid.domain.model.TransactionData(),
+        val emvCardData62 = EmvCardData(
+            applicationInfo = ApplicationInfo(
+                aid = "",
+                aidBytes = byteArrayOf(),
+                cardType = CardType.UNKNOWN
+            ),
+            transactionData = TransactionData(),
             cardholderData = cardholderData62
         )
         assertThat(emvCardData62.cardType).isEqualTo(CardType.UNIONPAY)
 
-        val cardholderData81 = com.yumedev.taptopayandroid.domain.model.CardholderData(
+        val cardholderData81 = CardholderData(
             pan = "8100123456789012",
-            panLastFour = "9012"
+            panLastFour = "9012",
+            expirationDate = "261231",
+            expirationDateDisplay = "12/26"
         )
-        val emvCardData81 = com.yumedev.taptopayandroid.domain.model.EmvCardData(
-            applicationInfo = com.yumedev.taptopayandroid.domain.model.ApplicationInfo(cardType = CardType.UNKNOWN),
-            transactionData = com.yumedev.taptopayandroid.domain.model.TransactionData(),
+        val emvCardData81 = EmvCardData(
+            applicationInfo = ApplicationInfo(
+                aid = "",
+                aidBytes = byteArrayOf(),
+                cardType = CardType.UNKNOWN
+            ),
+            transactionData = TransactionData(),
             cardholderData = cardholderData81
         )
         assertThat(emvCardData81.cardType).isEqualTo(CardType.UNIONPAY)
