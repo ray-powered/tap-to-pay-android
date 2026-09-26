@@ -43,9 +43,19 @@ class TapToPayViewModel @Inject constructor(
         }
     }
 
+    private fun parseAmountToCents(amount: String): Long {
+        val clean = amount.replace("$", "").replace(",", "").trim()
+        val parts = clean.split(".")
+        val dollars = parts.getOrNull(0)?.toLongOrNull() ?: 0L
+        val centsPart = parts.getOrNull(1) ?: "00"
+        val cents = (centsPart + "00").take(2).toLongOrNull() ?: 0L
+        return (dollars * 100 + cents).coerceAtLeast(0L)
+    }
+
     private fun processNfcTag(tag: Tag) {
         viewModelScope.launch {
-            val result = readCardUseCase(tag)
+            val amountCents = parseAmountToCents(_lastAmount.value)
+            val result = readCardUseCase(tag, amountCents)
 
             _nfcState.value = result.fold(
                 onSuccess = { emvCardData ->

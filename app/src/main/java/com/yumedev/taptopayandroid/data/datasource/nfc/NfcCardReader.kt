@@ -9,6 +9,10 @@ import com.yumedev.taptopayandroid.util.SecureLogger
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.IOException
+import java.security.SecureRandom
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -21,11 +25,14 @@ class NfcCardReader @Inject constructor(
         private const val TAG = "NfcCardReader"
     }
 
+    data class DolItem(val tag: String, val length: Int)
+
     suspend fun readCard(tag: Tag, amountCents: Long? = null): Result<EmvCardData> = withContext(Dispatchers.IO) {
         var isoDep: IsoDep? = null
         val apduCommands = mutableListOf<ApduCommand>()
         val allRecords = mutableListOf<ByteArray>()
         var commandSequence = 1
+        var aipBytes: ByteArray? = null
 
         try {
             isoDep = IsoDep.get(tag)
@@ -44,7 +51,7 @@ class NfcCardReader @Inject constructor(
                 0x04.toByte(), // P1
                 0x00.toByte(), // P2
                 0x0E.toByte(), // Lc (length of data)
-                // PPSE AID
+                // PPSE AID (2PAY.SYS.DDF01)
                 0x32.toByte(), 0x50.toByte(), 0x41.toByte(), 0x59.toByte(),
                 0x2E.toByte(), 0x53.toByte(), 0x59.toByte(), 0x53.toByte(),
                 0x2E.toByte(), 0x44.toByte(), 0x44.toByte(), 0x46.toByte(),
@@ -95,36 +102,29 @@ class NfcCardReader @Inject constructor(
             }
 
             // Step 4: Get Processing Options (GPO)
-            // Parse PDOL from AID response to build proper GPO
+            // Parse PDOL (Processing Options Data Object List) from AID response to build real EMV parameters
             val pdol = findTag(aidResponse, 0x9F.toByte(), 0x38.toByte())
             val gpoCommand = if (pdol != null && pdol.isNotEmpty()) {
-                SecureLogger.d(TAG) { "Found PDOL: ${pdol.toHexString()}" }
-                // Calculate total PDOL data length needed
-                val pdolLength = parsePdolLength(pdol)
-                SecureLogger.d(TAG) { "PDOL requires $pdolLength bytes" }
+                val dolItems = parseDol(pdol)
+                SecureLogger.d(TAG) { "Found PDOL (${dolItems.size} items): ${dolItems.joinToString { "${it.tag}:${it.length}B" }}" }
 
-                // Build GPO with PDOL data (fill with zeros for simplicity)
-                val pdolData = ByteArray(pdolLength)
+                // Build real EMV terminal transaction data according to EMVCo specifications
+                val pdolData = buildDolData(dolItems, amountCents)
+                SecureLogger.d(TAG) { "Constructed PDOL data (${pdolData.size}B): ${pdolData.toHexString()}" }
 
-                // Build command: 80 A8 00 00 Lc 83 Ld [Data] Le
-                // Lc = 2 + pdolData.size (for tag 83 + length byte + data)
+                // Build GPO command: 80 A8 00 00 Lc 83 Ld [Data] Le
                 val lc = 2 + pdolData.size
-
-                SecureLogger.d(TAG) { "Building GPO: Lc=$lc, PDOL Data Length=${pdolData.size}" }
-
                 byteArrayOf(
                     0x80.toByte(), // CLA
-                    0xA8.toByte(), // INS
+                    0xA8.toByte(), // INS (GET PROCESSING OPTIONS)
                     0x00.toByte(), // P1
                     0x00.toByte(), // P2
-                    lc.toByte()    // Lc = length of command data
-                ) + byteArrayOf(
-                    0x83.toByte(),          // PDOL tag
-                    pdolData.size.toByte()  // PDOL length
+                    lc.toByte(),   // Lc
+                    0x83.toByte(), // Tag 83
+                    pdolData.size.toByte() // Ld
                 ) + pdolData + byteArrayOf(0x00.toByte()) // Le
             } else {
-                SecureLogger.d(TAG) { "No PDOL found, using default GPO" }
-                // Default GPO
+                SecureLogger.d(TAG) { "No PDOL requested by card, using empty GPO" }
                 byteArrayOf(
                     0x80.toByte(), 0xA8.toByte(), 0x00.toByte(), 0x00.toByte(),
                     0x02.toByte(), 0x83.toByte(), 0x00.toByte(), 0x00.toByte()
@@ -138,7 +138,7 @@ class NfcCardReader @Inject constructor(
             apduCommands.add(ApduCommand(
                 sequence = commandSequence++,
                 name = "GET PROCESSING OPTIONS",
-                description = "Request card processing options",
+                description = "Request card processing options with terminal transaction data",
                 commandApdu = gpoCommand.toHexString(),
                 responseApdu = gpoResponse.toHexString(),
                 statusWord = getStatusWord(gpoResponse),
@@ -149,10 +149,19 @@ class NfcCardReader @Inject constructor(
 
             if (isSuccessResponse(gpoResponse)) {
                 // Remove status word bytes (last 2 bytes) before adding to records
-                allRecords.add(removeStatusWord(gpoResponse))
+                val cleanGpo = removeStatusWord(gpoResponse)
+                allRecords.add(cleanGpo)
+
+                // Extract AIP (Application Interchange Profile) from GPO response
+                aipBytes = findTag(cleanGpo, 0x82.toByte()) ?: if (cleanGpo.size >= 4 && cleanGpo[0] == 0x80.toByte()) {
+                    cleanGpo.copyOfRange(2, 4)
+                } else null
 
                 // Parse AFL (Application File Locator) from GPO response
-                val afl = findTag(gpoResponse, 0x94.toByte())
+                val afl = findTag(cleanGpo, 0x94.toByte()) ?: if (cleanGpo.size > 4 && cleanGpo[0] == 0x80.toByte()) {
+                    cleanGpo.copyOfRange(4, cleanGpo.size)
+                } else null
+
                 if (afl != null) {
                     // Read records from AFL
                     var i = 0
@@ -184,7 +193,6 @@ class NfcCardReader @Inject constructor(
                                 SecureLogger.dSecure(TAG, "Record SFI=$sfi Rec=$record: ${recordResponse.toHexString()}")
 
                                 if (isSuccessResponse(recordResponse)) {
-                                    // Remove status word bytes before adding
                                     allRecords.add(removeStatusWord(recordResponse))
                                 }
                             } catch (e: Exception) {
@@ -198,13 +206,13 @@ class NfcCardReader @Inject constructor(
                 Log.w(TAG, "GPO failed with status: ${gpoResponse.toHexString()}")
             }
 
-            // Fallback: Manual record reading if needed
+            // Fallback: Manual record reading if AFL was missing or returned no data
             if (allRecords.size <= 1) {
-                SecureLogger.d(TAG) { "Attempting manual record read..." }
-                val sfiOrder = listOf(2, 1, 3, 4) // Try SFI 2 first
+                SecureLogger.d(TAG) { "Attempting manual record read fallback..." }
+                val sfiOrder = listOf(2, 1, 3, 4)
 
                 for (sfi in sfiOrder) {
-                    for (record in 1..3) { // Usually only records 1-3 have useful data
+                    for (record in 1..3) {
                         try {
                             val readRecordCommand = byteArrayOf(
                                 0x00.toByte(), 0xB2.toByte(),
@@ -225,22 +233,65 @@ class NfcCardReader @Inject constructor(
                                     statusDescription = getStatusDescription(recordResponse)
                                 ))
 
-                                // Remove status word bytes before adding
                                 allRecords.add(removeStatusWord(recordResponse))
                                 SecureLogger.logByteArraySize(TAG, "Record SFI=$sfi Rec=$record", recordResponse)
                             } else {
                                 if (record == 1) {
                                     SecureLogger.d(TAG) { "SFI=$sfi not available" }
                                 }
-                                break // If record 1 fails, skip rest of this SFI
+                                break
                             }
                         } catch (e: Exception) {
                             if (record == 1) {
                                 SecureLogger.d(TAG) { "SFI=$sfi error: ${e.message}" }
                             }
-                            break // If record 1 errors, skip rest of this SFI
+                            break
                         }
                     }
+                }
+            }
+
+            // Step 5: Transaction APDU - GENERATE AC (Application Cryptogram)
+            // If the card specifies CDOL1 (Card Risk Management Data Object List 1, Tag 8C),
+            // construct the real CDOL parameters and request an Application Cryptogram (ARQC/TC)
+            val combinedRecords = allRecords.flatMap { it.toList() }.toByteArray()
+            val cdol1 = findTag(combinedRecords, 0x8C.toByte()) ?: findTag(aidResponse, 0x8C.toByte())
+            if (cdol1 != null && cdol1.isNotEmpty()) {
+                try {
+                    val cdolItems = parseDol(cdol1)
+                    SecureLogger.d(TAG) { "Found CDOL1 (${cdolItems.size} items): ${cdolItems.joinToString { "${it.tag}:${it.length}B" }}" }
+                    val cdolData = buildDolData(cdolItems, amountCents, aipBytes)
+                    SecureLogger.d(TAG) { "Constructed CDOL1 data (${cdolData.size}B): ${cdolData.toHexString()}" }
+
+                    // CLA: 80, INS: AE (GENERATE AC), P1: 80 (Request ARQC for online auth), P2: 00
+                    val genAcCommand = byteArrayOf(
+                        0x80.toByte(),
+                        0xAE.toByte(),
+                        0x80.toByte(), // Request ARQC
+                        0x00.toByte(),
+                        cdolData.size.toByte()
+                    ) + cdolData + byteArrayOf(0x00.toByte())
+
+                    val genAcResponse = isoDep.transceive(genAcCommand)
+
+                    apduCommands.add(ApduCommand(
+                        sequence = commandSequence++,
+                        name = "GENERATE AC (ARQC)",
+                        description = "Request Application Cryptogram for transaction authorization",
+                        commandApdu = genAcCommand.toHexString(),
+                        responseApdu = genAcResponse.toHexString(),
+                        statusWord = getStatusWord(genAcResponse),
+                        statusDescription = getStatusDescription(genAcResponse)
+                    ))
+
+                    if (isSuccessResponse(genAcResponse)) {
+                        allRecords.add(removeStatusWord(genAcResponse))
+                        SecureLogger.dSecure(TAG, "GENERATE AC Response: ${genAcResponse.toHexString()}")
+                    } else {
+                        SecureLogger.d(TAG) { "GENERATE AC status: ${getStatusWord(genAcResponse)}" }
+                    }
+                } catch (e: Exception) {
+                    SecureLogger.d(TAG) { "GENERATE AC step skipped or unsupported: ${e.message}" }
                 }
             }
 
@@ -261,7 +312,7 @@ class NfcCardReader @Inject constructor(
                 additionalTags = additionalTags
             )
 
-            SecureLogger.d(TAG) { "Card read successfully" }
+            SecureLogger.d(TAG) { "Card read successfully with ${apduCommands.size} APDU exchanges" }
             Result.success(emvCardData)
 
         } catch (e: IOException) {
@@ -280,8 +331,155 @@ class NfcCardReader @Inject constructor(
         }
     }
 
+    /**
+     * Parses an EMV Data Object List (DOL) into Tag and Length items.
+     * Handles single-byte, two-byte, and multi-byte tags as well as variable-length encodings.
+     */
+    internal fun parseDol(dolBytes: ByteArray): List<DolItem> {
+        val items = mutableListOf<DolItem>()
+        var i = 0
+
+        while (i < dolBytes.size) {
+            val b1 = dolBytes[i].toInt() and 0xFF
+            i++
+            val tagBytes = mutableListOf(b1)
+
+            if ((b1 and 0x1F) == 0x1F) {
+                while (i < dolBytes.size) {
+                    val nextB = dolBytes[i].toInt() and 0xFF
+                    i++
+                    tagBytes.add(nextB)
+                    if ((nextB and 0x80) == 0) break
+                }
+            }
+
+            val tagHex = tagBytes.joinToString("") { "%02X".format(it) }
+
+            if (i < dolBytes.size) {
+                var len = dolBytes[i].toInt() and 0xFF
+                i++
+                if ((len and 0x80) != 0) {
+                    val numLenBytes = len and 0x7F
+                    len = 0
+                    for (j in 0 until numLenBytes) {
+                        if (i < dolBytes.size) {
+                            len = (len shl 8) or (dolBytes[i].toInt() and 0xFF)
+                            i++
+                        }
+                    }
+                }
+                items.add(DolItem(tagHex, len))
+            }
+        }
+
+        return items
+    }
+
+    /**
+     * Constructs standards-compliant EMV terminal transaction data for a given DOL.
+     * Accurately provides TTQ, actual transaction amount in BCD, current date, random numbers,
+     * country and currency codes according to EMVCo Contactless specifications.
+     */
+    internal fun buildDolData(
+        dolItems: List<DolItem>,
+        amountCents: Long?,
+        aip: ByteArray? = null
+    ): ByteArray {
+        val output = mutableListOf<Byte>()
+
+        for (item in dolItems) {
+            val value = when (item.tag) {
+                // 9F66: Terminal Transaction Qualifiers (TTQ)
+                // 0x36, 0x20, 0x40, 0x00 indicates Contactless EMV (qVSDC) supported,
+                // Contactless MSD supported, Online PIN & Signature supported,
+                // Mobile CVM supported, Online Cryptogram required.
+                "9F66" -> byteArrayOf(0x36.toByte(), 0x20.toByte(), 0x40.toByte(), 0x00.toByte())
+
+                // 9F02: Amount, Authorised (Numeric - 6 bytes BCD)
+                "9F02" -> formatBcdAmount(amountCents ?: 0L, item.length)
+
+                // 9F03: Amount, Other (Numeric - 6 bytes BCD)
+                "9F03" -> ByteArray(item.length)
+
+                // 9F1A: Terminal Country Code (2 bytes BCD - 08 40 = USD/USA)
+                "9F1A" -> byteArrayOf(0x08.toByte(), 0x40.toByte())
+
+                // 5F2A: Transaction Currency Code (2 bytes BCD - 08 40 = USD)
+                "5F2A" -> byteArrayOf(0x08.toByte(), 0x40.toByte())
+
+                // 9A: Transaction Date (3 bytes BCD - YY MM DD)
+                "9A" -> formatBcdDate()
+
+                // 9C: Transaction Type (1 byte - 00 = Purchase)
+                "9C" -> byteArrayOf(0x00.toByte())
+
+                // 9F37: Unpredictable Number (4 bytes cryptographically random)
+                "9F37" -> ByteArray(item.length).also { SecureRandom().nextBytes(it) }
+
+                // 9F35: Terminal Type (1 byte - 22 = Attended Online Merchant Terminal)
+                "9F35" -> byteArrayOf(0x22.toByte())
+
+                // 9F33: Terminal Capabilities (3 bytes - E0 F8 C8: IC, Magstripe, PIN, Signature, DDA, CDA)
+                "9F33" -> byteArrayOf(0xE0.toByte(), 0xF8.toByte(), 0xC8.toByte())
+
+                // 95: Terminal Verification Results (TVR - 5 bytes 0x00)
+                "95" -> ByteArray(item.length)
+
+                // 82: Application Interchange Profile (AIP)
+                "82" -> aip?.takeIf { it.size == item.length } ?: ByteArray(item.length)
+
+                // 9F36: Application Transaction Counter (ATC)
+                "9F36" -> ByteArray(item.length)
+
+                // 9F34: CVM Results (3 bytes - 1F 00 02: No CVM required/successful)
+                "9F34" -> byteArrayOf(0x1F.toByte(), 0x00.toByte(), 0x02.toByte())
+
+                // 9F1E: IFD Serial Number (8 bytes ASCII)
+                "9F1E" -> "12345678".take(item.length).padEnd(item.length, '0').toByteArray()
+
+                // 9F4E: Merchant Name and Location
+                "9F4E" -> "TAP TO PAY          ".take(item.length).padEnd(item.length, ' ').toByteArray()
+
+                // Default fallback: zero-padded array of requested length
+                else -> ByteArray(item.length)
+            }
+
+            val adjusted = when {
+                value.size == item.length -> value
+                value.size < item.length -> value + ByteArray(item.length - value.size)
+                else -> value.copyOfRange(0, item.length)
+            }
+            output.addAll(adjusted.toList())
+        }
+
+        return output.toByteArray()
+    }
+
+    private fun formatBcdAmount(cents: Long, targetLength: Int = 6): ByteArray {
+        val totalDigits = targetLength * 2
+        val clampedCents = cents.coerceAtLeast(0L)
+        val formattedStr = "%0${totalDigits}d".format(clampedCents).takeLast(totalDigits)
+        val result = ByteArray(targetLength)
+        for (i in 0 until targetLength) {
+            val highNibble = formattedStr[i * 2].digitToInt(16)
+            val lowNibble = formattedStr[i * 2 + 1].digitToInt(16)
+            result[i] = ((highNibble shl 4) or lowNibble).toByte()
+        }
+        return result
+    }
+
+    private fun formatBcdDate(): ByteArray {
+        val dateStr = SimpleDateFormat("yyMMdd", Locale.US).format(Date())
+        val result = ByteArray(3)
+        for (i in 0 until 3) {
+            val highNibble = dateStr[i * 2].digitToInt(16)
+            val lowNibble = dateStr[i * 2 + 1].digitToInt(16)
+            result[i] = ((highNibble shl 4) or lowNibble).toByte()
+        }
+        return result
+    }
+
     private fun extractAID(response: ByteArray): ByteArray? {
-        // Look for tag 0x4F (AID - Application Identifier)
         val aidTag = 0x4F.toByte()
         var i = 0
         while (i < response.size - 1) {
@@ -312,24 +510,18 @@ class NfcCardReader @Inject constructor(
 
         while (i < pdol.size) {
             val currentByte = pdol[i].toInt() and 0xFF
-
-            // Check if this is a 2-byte tag
             val is2ByteTag = (currentByte == 0x9F || currentByte == 0x5F ||
                              currentByte == 0xBF || currentByte == 0xDF)
 
             if (is2ByteTag) {
-                // Skip 2 bytes for tag
                 i += 2
             } else {
-                // Skip 1 byte for tag
                 i += 1
             }
 
-            // Read length byte
             if (i < pdol.size) {
                 val length = pdol[i].toInt() and 0xFF
                 totalLength += length
-                SecureLogger.d(TAG) { "PDOL tag requires $length bytes" }
                 i++
             }
         }
@@ -396,7 +588,6 @@ class NfcCardReader @Inject constructor(
     }
 
     private fun removeStatusWord(response: ByteArray): ByteArray {
-        // Remove last 2 bytes (status word 90 00)
         return if (response.size >= 2) {
             response.copyOfRange(0, response.size - 2)
         } else {
