@@ -128,9 +128,13 @@ class MainActivity : ComponentActivity() {
         adapter.enableReaderMode(
             this,
             { tag ->
-                Log.d(TAG, "NFC Tag discovered via ReaderMode: ${tag.id.contentToString()}")
-                lifecycleScope.launch {
-                    handleNfcTagUseCase(tag)
+                try {
+                    Log.d(TAG, "NFC Tag discovered via ReaderMode: ${tag.id?.contentToString()}")
+                    lifecycleScope.launch {
+                        handleNfcTagUseCase(tag)
+                    }
+                } catch (t: Throwable) {
+                    Log.e(TAG, "Error in ReaderCallback", t)
                 }
             },
             flags,

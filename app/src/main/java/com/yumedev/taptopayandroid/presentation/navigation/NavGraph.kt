@@ -62,11 +62,14 @@ fun NavGraph(
                     navController.popBackStack()
                 },
                 onSuccess = { emvCardData ->
+                    val lastFour = emvCardData.cardholderData.panLastFour.ifEmpty { "0000" }
+                    val cardType = emvCardData.cardType.name.ifEmpty { "UNKNOWN" }
+                    val safeAmount = amount.replace("/", "_").ifEmpty { "0.00" }
                     navController.navigate(
                         NavigationRoutes.Success.createRoute(
-                            amount = amount,
-                            cardNumber = emvCardData.cardholderData.panLastFour,
-                            cardType = emvCardData.cardType.name
+                            amount = safeAmount,
+                            cardNumber = lastFour,
+                            cardType = cardType
                         )
                     ) {
                         // Remove TapToPay from back stack
@@ -76,10 +79,12 @@ fun NavGraph(
                     }
                 },
                 onError = { errorMessage ->
+                    val safeError = errorMessage.replace("/", "-").ifEmpty { "Unknown error" }
+                    val safeAmount = amount.replace("/", "_").ifEmpty { "0.00" }
                     navController.navigate(
                         NavigationRoutes.Error.createRoute(
-                            amount = amount,
-                            errorMessage = errorMessage
+                            amount = safeAmount,
+                            errorMessage = safeError
                         )
                     ) {
                         // Remove TapToPay from back stack

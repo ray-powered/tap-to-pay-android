@@ -32,7 +32,7 @@ class HandleNfcTagUseCase @Inject constructor(
 
     // Process an NFC tag discovery event
     suspend operator fun invoke(tag: Tag): Boolean {
-        val tagId = tag.id.contentToString()
+        val tagId = tag.id?.contentToString() ?: "UNKNOWN_TAG"
 
         // Prevent processing the same tag multiple times
         if (tagId == lastProcessedTagId) {

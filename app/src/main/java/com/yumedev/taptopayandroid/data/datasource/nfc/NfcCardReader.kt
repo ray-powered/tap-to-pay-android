@@ -252,47 +252,49 @@ class NfcCardReader @Inject constructor(
             }
 
             // Step 5: Transaction APDU - GENERATE AC (Application Cryptogram)
-            // If the card specifies CDOL1 (Card Risk Management Data Object List 1, Tag 8C),
-            // construct the real CDOL parameters and request an Application Cryptogram (ARQC/TC)
-            val combinedRecords = allRecords.flatMap { it.toList() }.toByteArray()
-            val cdol1 = findTag(combinedRecords, 0x8C.toByte()) ?: findTag(aidResponse, 0x8C.toByte())
-            if (cdol1 != null && cdol1.isNotEmpty()) {
-                try {
+            try {
+                val combinedRecords = allRecords.flatMap { it.toList() }.toByteArray()
+                val cdol1 = findTag(combinedRecords, 0x8C.toByte()) ?: findTag(aidResponse, 0x8C.toByte())
+                if (cdol1 != null && cdol1.size in 2..64) {
                     val cdolItems = parseDol(cdol1)
-                    SecureLogger.d(TAG) { "Found CDOL1 (${cdolItems.size} items): ${cdolItems.joinToString { "${it.tag}:${it.length}B" }}" }
-                    val cdolData = buildDolData(cdolItems, amountCents, aipBytes)
-                    SecureLogger.d(TAG) { "Constructed CDOL1 data (${cdolData.size}B): ${cdolData.toHexString()}" }
+                    if (cdolItems.isNotEmpty()) {
+                        SecureLogger.d(TAG) { "Found CDOL1 (${cdolItems.size} items): ${cdolItems.joinToString { "${it.tag}:${it.length}B" }}" }
+                        val cdolData = buildDolData(cdolItems, amountCents, aipBytes)
+                        if (cdolData.isNotEmpty() && cdolData.size <= 255) {
+                            SecureLogger.d(TAG) { "Constructed CDOL1 data (${cdolData.size}B): ${cdolData.toHexString()}" }
 
-                    // CLA: 80, INS: AE (GENERATE AC), P1: 80 (Request ARQC for online auth), P2: 00
-                    val genAcCommand = byteArrayOf(
-                        0x80.toByte(),
-                        0xAE.toByte(),
-                        0x80.toByte(), // Request ARQC
-                        0x00.toByte(),
-                        cdolData.size.toByte()
-                    ) + cdolData + byteArrayOf(0x00.toByte())
+                            // CLA: 80, INS: AE (GENERATE AC), P1: 80 (Request ARQC for online auth), P2: 00
+                            val genAcCommand = byteArrayOf(
+                                0x80.toByte(),
+                                0xAE.toByte(),
+                                0x80.toByte(), // Request ARQC
+                                0x00.toByte(),
+                                cdolData.size.toByte()
+                            ) + cdolData + byteArrayOf(0x00.toByte())
 
-                    val genAcResponse = isoDep.transceive(genAcCommand)
+                            val genAcResponse = isoDep.transceive(genAcCommand)
 
-                    apduCommands.add(ApduCommand(
-                        sequence = commandSequence++,
-                        name = "GENERATE AC (ARQC)",
-                        description = "Request Application Cryptogram for transaction authorization",
-                        commandApdu = genAcCommand.toHexString(),
-                        responseApdu = genAcResponse.toHexString(),
-                        statusWord = getStatusWord(genAcResponse),
-                        statusDescription = getStatusDescription(genAcResponse)
-                    ))
+                            apduCommands.add(ApduCommand(
+                                sequence = commandSequence++,
+                                name = "GENERATE AC (ARQC)",
+                                description = "Request Application Cryptogram for transaction authorization",
+                                commandApdu = genAcCommand.toHexString(),
+                                responseApdu = genAcResponse.toHexString(),
+                                statusWord = getStatusWord(genAcResponse),
+                                statusDescription = getStatusDescription(genAcResponse)
+                            ))
 
-                    if (isSuccessResponse(genAcResponse)) {
-                        allRecords.add(removeStatusWord(genAcResponse))
-                        SecureLogger.dSecure(TAG, "GENERATE AC Response: ${genAcResponse.toHexString()}")
-                    } else {
-                        SecureLogger.d(TAG) { "GENERATE AC status: ${getStatusWord(genAcResponse)}" }
+                            if (isSuccessResponse(genAcResponse)) {
+                                allRecords.add(removeStatusWord(genAcResponse))
+                                SecureLogger.dSecure(TAG, "GENERATE AC Response: ${genAcResponse.toHexString()}")
+                            } else {
+                                SecureLogger.d(TAG) { "GENERATE AC status: ${getStatusWord(genAcResponse)}" }
+                            }
+                        }
                     }
-                } catch (e: Exception) {
-                    SecureLogger.d(TAG) { "GENERATE AC step skipped or unsupported: ${e.message}" }
                 }
+            } catch (t: Throwable) {
+                SecureLogger.d(TAG) { "GENERATE AC step skipped or unsupported: ${t.message}" }
             }
 
             // Parse all data using EmvTagParser
@@ -337,13 +339,17 @@ class NfcCardReader @Inject constructor(
      */
     internal fun parseDol(dolBytes: ByteArray): List<DolItem> {
         val items = mutableListOf<DolItem>()
+    internal fun parseDol(dolBytes: ByteArray): List<DolItem> {
+        val items = mutableListOf<DolItem>()
         var i = 0
 
         while (i < dolBytes.size) {
             val b1 = dolBytes[i].toInt() and 0xFF
             i++
-            val tagBytes = mutableListOf(b1)
+            // Skip padding or invalid bytes
+            if (b1 == 0x00 || b1 == 0xFF) continue
 
+            val tagBytes = mutableListOf(b1)
             if ((b1 and 0x1F) == 0x1F) {
                 while (i < dolBytes.size) {
                     val nextB = dolBytes[i].toInt() and 0xFF
@@ -356,19 +362,13 @@ class NfcCardReader @Inject constructor(
             val tagHex = tagBytes.joinToString("") { "%02X".format(it) }
 
             if (i < dolBytes.size) {
-                var len = dolBytes[i].toInt() and 0xFF
+                // In EMV specifications (Book 3 Sec 5.4), DOL item length is strictly 1 byte
+                val len = dolBytes[i].toInt() and 0xFF
                 i++
-                if ((len and 0x80) != 0) {
-                    val numLenBytes = len and 0x7F
-                    len = 0
-                    for (j in 0 until numLenBytes) {
-                        if (i < dolBytes.size) {
-                            len = (len shl 8) or (dolBytes[i].toInt() and 0xFF)
-                            i++
-                        }
-                    }
+                // Validate reasonable EMV tag length (1 to 64 bytes) to avoid corrupt data
+                if (len in 1..64) {
+                    items.add(DolItem(tagHex, len))
                 }
-                items.add(DolItem(tagHex, len))
             }
         }
 
@@ -388,6 +388,9 @@ class NfcCardReader @Inject constructor(
         val output = mutableListOf<Byte>()
 
         for (item in dolItems) {
+            // Guard against excessive allocation
+            val safeLength = item.length.coerceIn(1, 64)
+
             val value = when (item.tag) {
                 // 9F66: Terminal Transaction Qualifiers (TTQ)
                 // 0x36, 0x20, 0x40, 0x00 indicates Contactless EMV (qVSDC) supported,
@@ -396,10 +399,10 @@ class NfcCardReader @Inject constructor(
                 "9F66" -> byteArrayOf(0x36.toByte(), 0x20.toByte(), 0x40.toByte(), 0x00.toByte())
 
                 // 9F02: Amount, Authorised (Numeric - 6 bytes BCD)
-                "9F02" -> formatBcdAmount(amountCents ?: 0L, item.length)
+                "9F02" -> formatBcdAmount(amountCents ?: 0L, safeLength)
 
                 // 9F03: Amount, Other (Numeric - 6 bytes BCD)
-                "9F03" -> ByteArray(item.length)
+                "9F03" -> ByteArray(safeLength)
 
                 // 9F1A: Terminal Country Code (2 bytes BCD - 08 40 = USD/USA)
                 "9F1A" -> byteArrayOf(0x08.toByte(), 0x40.toByte())
@@ -414,7 +417,7 @@ class NfcCardReader @Inject constructor(
                 "9C" -> byteArrayOf(0x00.toByte())
 
                 // 9F37: Unpredictable Number (4 bytes cryptographically random)
-                "9F37" -> ByteArray(item.length).also { SecureRandom().nextBytes(it) }
+                "9F37" -> ByteArray(safeLength).also { SecureRandom().nextBytes(it) }
 
                 // 9F35: Terminal Type (1 byte - 22 = Attended Online Merchant Terminal)
                 "9F35" -> byteArrayOf(0x22.toByte())
@@ -423,31 +426,31 @@ class NfcCardReader @Inject constructor(
                 "9F33" -> byteArrayOf(0xE0.toByte(), 0xF8.toByte(), 0xC8.toByte())
 
                 // 95: Terminal Verification Results (TVR - 5 bytes 0x00)
-                "95" -> ByteArray(item.length)
+                "95" -> ByteArray(safeLength)
 
                 // 82: Application Interchange Profile (AIP)
-                "82" -> aip?.takeIf { it.size == item.length } ?: ByteArray(item.length)
+                "82" -> aip?.takeIf { it.size == safeLength } ?: ByteArray(safeLength)
 
                 // 9F36: Application Transaction Counter (ATC)
-                "9F36" -> ByteArray(item.length)
+                "9F36" -> ByteArray(safeLength)
 
                 // 9F34: CVM Results (3 bytes - 1F 00 02: No CVM required/successful)
                 "9F34" -> byteArrayOf(0x1F.toByte(), 0x00.toByte(), 0x02.toByte())
 
                 // 9F1E: IFD Serial Number (8 bytes ASCII)
-                "9F1E" -> "12345678".take(item.length).padEnd(item.length, '0').toByteArray()
+                "9F1E" -> "12345678".take(safeLength).padEnd(safeLength, '0').toByteArray()
 
                 // 9F4E: Merchant Name and Location
-                "9F4E" -> "TAP TO PAY          ".take(item.length).padEnd(item.length, ' ').toByteArray()
+                "9F4E" -> "TAP TO PAY          ".take(safeLength).padEnd(safeLength, ' ').toByteArray()
 
-                // Default fallback: zero-padded array of requested length
-                else -> ByteArray(item.length)
+                // Default fallback: zero-padded array of safe length (never exceeds 64B)
+                else -> ByteArray(safeLength)
             }
 
             val adjusted = when {
-                value.size == item.length -> value
-                value.size < item.length -> value + ByteArray(item.length - value.size)
-                else -> value.copyOfRange(0, item.length)
+                value.size == safeLength -> value
+                value.size < safeLength -> value + ByteArray(safeLength - value.size)
+                else -> value.copyOfRange(0, safeLength)
             }
             output.addAll(adjusted.toList())
         }
