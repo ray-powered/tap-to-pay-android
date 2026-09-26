@@ -80,6 +80,15 @@ fun SettingsScreen(
     val themeMode by viewModel.themeMode.collectAsState()
     val soundEnabled by viewModel.soundEnabled.collectAsState()
     val detailLevel by viewModel.detailLevel.collectAsState()
+    val terminalConfig by viewModel.terminalConfig.collectAsState()
+
+    var showCurrencyDialog by remember { mutableStateOf(false) }
+    var showCountryDialog by remember { mutableStateOf(false) }
+    var showTransactionTypeDialog by remember { mutableStateOf(false) }
+    var showTtqDialog by remember { mutableStateOf(false) }
+    var showCapabilitiesDialog by remember { mutableStateOf(false) }
+    var showTerminalTypeDialog by remember { mutableStateOf(false) }
+    var showMerchantDialog by remember { mutableStateOf(false) }
 
     val selectedTheme = when (themeMode) {
         PreferencesManager.THEME_LIGHT -> ThemeOption.LIGHT
@@ -91,6 +100,86 @@ fun SettingsScreen(
     val selectedDetailLevel = detailLevel
 
     var rawLogsEnabled by remember { mutableStateOf(true) }
+
+    // Dialogs for Terminal Configuration
+    if (showCurrencyDialog) {
+        com.yumedev.taptopayandroid.presentation.ui.components.CurrencySelectionDialog(
+            currentConfig = terminalConfig,
+            onDismiss = { showCurrencyDialog = false },
+            onConfirm = { code, symbol, exponent ->
+                viewModel.updateCurrency(code, symbol, exponent)
+                showCurrencyDialog = false
+            }
+        )
+    }
+
+    if (showCountryDialog) {
+        com.yumedev.taptopayandroid.presentation.ui.components.CountrySelectionDialog(
+            currentCountryCode = terminalConfig.countryCode,
+            onDismiss = { showCountryDialog = false },
+            onConfirm = { code ->
+                viewModel.updateCountry(code)
+                showCountryDialog = false
+            }
+        )
+    }
+
+    if (showTransactionTypeDialog) {
+        com.yumedev.taptopayandroid.presentation.ui.components.TransactionTypeSelectionDialog(
+            currentType = terminalConfig.transactionType,
+            onDismiss = { showTransactionTypeDialog = false },
+            onConfirm = { type ->
+                viewModel.updateTransactionType(type)
+                showTransactionTypeDialog = false
+            }
+        )
+    }
+
+    if (showTtqDialog) {
+        com.yumedev.taptopayandroid.presentation.ui.components.TtqEditorDialog(
+            currentConfig = terminalConfig,
+            onDismiss = { showTtqDialog = false },
+            onConfirm = { newTtq ->
+                viewModel.updateTtq(newTtq)
+                showTtqDialog = false
+            }
+        )
+    }
+
+    if (showCapabilitiesDialog) {
+        com.yumedev.taptopayandroid.presentation.ui.components.TerminalCapabilitiesDialog(
+            currentCapabilitiesHex = terminalConfig.terminalCapabilitiesHex,
+            onDismiss = { showCapabilitiesDialog = false },
+            onConfirm = { newHex ->
+                viewModel.updateTerminalCapabilities(newHex)
+                showCapabilitiesDialog = false
+            }
+        )
+    }
+
+    if (showTerminalTypeDialog) {
+        com.yumedev.taptopayandroid.presentation.ui.components.TerminalTypeDialog(
+            currentTypeHex = terminalConfig.terminalTypeHex,
+            onDismiss = { showTerminalTypeDialog = false },
+            onConfirm = { newHex ->
+                viewModel.updateTerminalType(newHex)
+                showTerminalTypeDialog = false
+            }
+        )
+    }
+
+    if (showMerchantDialog) {
+        com.yumedev.taptopayandroid.presentation.ui.components.MerchantDetailsDialog(
+            merchantName = terminalConfig.merchantName,
+            ifdSerial = terminalConfig.ifdSerialNumber,
+            mcc = terminalConfig.merchantCategoryCode,
+            onDismiss = { showMerchantDialog = false },
+            onConfirm = { name, ifd, mcc ->
+                viewModel.updateMerchantDetails(name, ifd, mcc)
+                showMerchantDialog = false
+            }
+        )
+    }
 
     LazyColumn(
         modifier = Modifier
@@ -105,6 +194,99 @@ fun SettingsScreen(
                 style = MaterialTheme.typography.headlineLarge,
                 fontWeight = FontWeight.Bold
             )
+        }
+
+        // --- POS Terminal & EMV Transaction Settings Section ---
+        item {
+            SettingsSection(
+                title = "POS 终端与交易配置 / EMV Terminal"
+            ) {
+                SettingsItemNavigable(
+                    icon = Icons.Outlined.Info,
+                    title = "交易币种 / Currency",
+                    subtitle = "Tag 5F2A: ${terminalConfig.currencyDisplayName}",
+                    endText = "${terminalConfig.currencySymbol} (${terminalConfig.currencyCode})",
+                    onClick = { showCurrencyDialog = true }
+                )
+                HorizontalDivider(
+                    modifier = Modifier.padding(start = 56.dp),
+                    color = MaterialTheme.colorScheme.outlineVariant
+                )
+                SettingsItemNavigable(
+                    icon = Icons.Outlined.Info,
+                    title = "终端国家代码 / Country",
+                    subtitle = "Tag 9F1A: ${terminalConfig.countryDisplayName}",
+                    endText = terminalConfig.countryCode,
+                    onClick = { showCountryDialog = true }
+                )
+                HorizontalDivider(
+                    modifier = Modifier.padding(start = 56.dp),
+                    color = MaterialTheme.colorScheme.outlineVariant
+                )
+                SettingsItemNavigable(
+                    icon = Icons.Outlined.Info,
+                    title = "交易类型 / Transaction Type",
+                    subtitle = "Tag 9C: ${terminalConfig.transactionTypeDisplayName}",
+                    endText = terminalConfig.transactionType,
+                    onClick = { showTransactionTypeDialog = true }
+                )
+                HorizontalDivider(
+                    modifier = Modifier.padding(start = 56.dp),
+                    color = MaterialTheme.colorScheme.outlineVariant
+                )
+                SettingsItemNavigable(
+                    icon = Icons.Outlined.Code,
+                    title = "终端交易限定符 / TTQ",
+                    subtitle = "Tag 9F66: ${terminalConfig.formattedTtq} (点击配置)",
+                    endText = terminalConfig.formattedTtq,
+                    onClick = { showTtqDialog = true }
+                )
+                HorizontalDivider(
+                    modifier = Modifier.padding(start = 56.dp),
+                    color = MaterialTheme.colorScheme.outlineVariant
+                )
+                SettingsItemNavigable(
+                    icon = Icons.Outlined.Splitscreen,
+                    title = "终端能力 / Terminal Capabilities",
+                    subtitle = "Tag 9F33: ${terminalConfig.formattedTerminalCapabilities} · IC/磁条/CVM能力",
+                    endText = terminalConfig.formattedTerminalCapabilities,
+                    onClick = { showCapabilitiesDialog = true }
+                )
+                HorizontalDivider(
+                    modifier = Modifier.padding(start = 56.dp),
+                    color = MaterialTheme.colorScheme.outlineVariant
+                )
+                SettingsItemNavigable(
+                    icon = Icons.Outlined.PhoneAndroid,
+                    title = "终端类型 / Terminal Type",
+                    subtitle = "Tag 9F35: ${terminalConfig.terminalTypeHex} · 商户联机/离线终端",
+                    endText = terminalConfig.terminalTypeHex,
+                    onClick = { showTerminalTypeDialog = true }
+                )
+                HorizontalDivider(
+                    modifier = Modifier.padding(start = 56.dp),
+                    color = MaterialTheme.colorScheme.outlineVariant
+                )
+                SettingsItemNavigable(
+                    icon = Icons.Outlined.Info,
+                    title = "商户与硬件信息 / Merchant & IFD",
+                    subtitle = "${terminalConfig.merchantName} · MCC: ${terminalConfig.merchantCategoryCode}",
+                    endText = "编辑",
+                    onClick = { showMerchantDialog = true }
+                )
+                HorizontalDivider(
+                    modifier = Modifier.padding(start = 56.dp),
+                    color = MaterialTheme.colorScheme.outlineVariant
+                )
+                SettingsItemNavigable(
+                    icon = Icons.Default.Refresh,
+                    title = "恢复默认 POS 参数",
+                    subtitle = "重置为标准 EMV 联机非接终端 (TTQ: 36204000, USD, 消费)",
+                    showChevron = false,
+                    endText = "重置",
+                    onClick = { viewModel.resetTerminalConfig() }
+                )
+            }
         }
 
         item {

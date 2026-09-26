@@ -26,9 +26,10 @@ object AppModule {
     @Provides
     @Singleton
     fun provideNfcCardReader(
-        emvTagParser: EmvTagParser
+        emvTagParser: EmvTagParser,
+        preferencesManager: PreferencesManager
     ): NfcCardReader {
-        return NfcCardReader(emvTagParser)
+        return NfcCardReader(emvTagParser, preferencesManager)
     }
 
     @Provides

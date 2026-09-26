@@ -16,12 +16,16 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+import com.yumedev.taptopayandroid.domain.model.TerminalConfig
+import com.yumedev.taptopayandroid.domain.usecase.GetTerminalConfigUseCase
+
 @HiltViewModel
 class TapToPayViewModel @Inject constructor(
     private val readCardUseCase: ReadCardUseCase,
     private val playSuccessSoundUseCase: PlaySuccessSoundUseCase,
     private val playFailedSoundUseCase: PlayFailedSoundUseCase,
-    private val nfcEventRepository: NfcEventRepository
+    private val nfcEventRepository: NfcEventRepository,
+    private val getTerminalConfigUseCase: GetTerminalConfigUseCase? = null
 ) : ViewModel() {
 
     private val _nfcState = MutableStateFlow<NfcState>(NfcState.Waiting)
@@ -35,6 +39,12 @@ class TapToPayViewModel @Inject constructor(
     private val _lastAmount = MutableStateFlow("0.00")
     val lastAmount: StateFlow<String> = _lastAmount.asStateFlow()
 
+    // Store current terminal configuration
+    private val _terminalConfig = MutableStateFlow(
+        getTerminalConfigUseCase?.invoke() ?: TerminalConfig()
+    )
+    val terminalConfig: StateFlow<TerminalConfig> = _terminalConfig.asStateFlow()
+
     init {
         viewModelScope.launch {
             nfcEventRepository.nfcTagFlow.collect { tag ->
@@ -44,7 +54,7 @@ class TapToPayViewModel @Inject constructor(
     }
 
     private fun parseAmountToCents(amount: String): Long {
-        val clean = amount.replace("$", "").replace(",", "").trim()
+        val clean = amount.filter { it.isDigit() || it == '.' }.trim()
         val parts = clean.split(".")
         val dollars = parts.getOrNull(0)?.toLongOrNull() ?: 0L
         val centsPart = parts.getOrNull(1) ?: "00"
@@ -55,7 +65,9 @@ class TapToPayViewModel @Inject constructor(
     private fun processNfcTag(tag: Tag) {
         viewModelScope.launch {
             val amountCents = parseAmountToCents(_lastAmount.value)
-            val result = readCardUseCase(tag, amountCents)
+            val currentConfig = getTerminalConfigUseCase?.invoke() ?: _terminalConfig.value
+            _terminalConfig.value = currentConfig
+            val result = readCardUseCase(tag, amountCents, currentConfig)
 
             _nfcState.value = result.fold(
                 onSuccess = { emvCardData ->
@@ -78,5 +90,8 @@ class TapToPayViewModel @Inject constructor(
     fun startNewTransaction(amount: String) {
         _nfcState.value = NfcState.Waiting
         _lastAmount.value = amount
+        getTerminalConfigUseCase?.invoke()?.let {
+            _terminalConfig.value = it
+        }
     }
 }

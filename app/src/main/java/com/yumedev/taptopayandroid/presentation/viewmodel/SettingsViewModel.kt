@@ -21,7 +21,10 @@ class SettingsViewModel @Inject constructor(
     private val getSoundEnabledUseCase: GetSoundEnabledUseCase,
     private val updateSoundEnabledUseCase: UpdateSoundEnabledUseCase,
     private val getDetailLevelUseCase: GetDetailLevelUseCase,
-    private val updateDetailLevelUseCase: UpdateDetailLevelUseCase
+    private val updateDetailLevelUseCase: UpdateDetailLevelUseCase,
+    private val getTerminalConfigUseCase: com.yumedev.taptopayandroid.domain.usecase.GetTerminalConfigUseCase? = null,
+    private val updateTerminalConfigUseCase: com.yumedev.taptopayandroid.domain.usecase.UpdateTerminalConfigUseCase? = null,
+    private val resetTerminalConfigUseCase: com.yumedev.taptopayandroid.domain.usecase.ResetTerminalConfigUseCase? = null
 ) : ViewModel() {
 
     private val _themeMode = MutableStateFlow(getThemeModeUseCase())
@@ -32,6 +35,11 @@ class SettingsViewModel @Inject constructor(
 
     private val _detailLevel = MutableStateFlow(getDetailLevelUseCase())
     val detailLevel: StateFlow<DetailLevel> = _detailLevel.asStateFlow()
+
+    private val _terminalConfig = MutableStateFlow(
+        getTerminalConfigUseCase?.invoke() ?: com.yumedev.taptopayandroid.domain.model.TerminalConfig()
+    )
+    val terminalConfig: StateFlow<com.yumedev.taptopayandroid.domain.model.TerminalConfig> = _terminalConfig.asStateFlow()
 
     fun updateThemeMode(mode: String) {
         updateThemeModeUseCase(mode)
@@ -46,5 +54,63 @@ class SettingsViewModel @Inject constructor(
     fun updateDetailLevel(level: DetailLevel) {
         updateDetailLevelUseCase(level)
         _detailLevel.value = level
+    }
+
+    fun updateTerminalConfig(config: com.yumedev.taptopayandroid.domain.model.TerminalConfig) {
+        updateTerminalConfigUseCase?.invoke(config)
+        _terminalConfig.value = config
+    }
+
+    fun resetTerminalConfig() {
+        resetTerminalConfigUseCase?.invoke()
+        _terminalConfig.value = com.yumedev.taptopayandroid.domain.model.TerminalConfig()
+    }
+
+    fun updateCurrency(code: String, symbol: String, exponent: Int) {
+        val updated = _terminalConfig.value.copy(
+            currencyCode = code,
+            currencySymbol = symbol,
+            currencyExponent = exponent
+        )
+        updateTerminalConfig(updated)
+    }
+
+    fun updateCountry(code: String) {
+        val updated = _terminalConfig.value.copy(countryCode = code)
+        updateTerminalConfig(updated)
+    }
+
+    fun updateTransactionType(type: String) {
+        val updated = _terminalConfig.value.copy(transactionType = type)
+        updateTerminalConfig(updated)
+    }
+
+    fun updateTtq(ttqHex: String) {
+        val updated = _terminalConfig.value.copy(ttqHex = ttqHex)
+        updateTerminalConfig(updated)
+    }
+
+    fun updateTtqBit(byteIndex: Int, bitMask: Int, enabled: Boolean) {
+        val updated = _terminalConfig.value.withTtqBit(byteIndex, bitMask, enabled)
+        updateTerminalConfig(updated)
+    }
+
+    fun updateTerminalCapabilities(capabilitiesHex: String) {
+        val updated = _terminalConfig.value.copy(terminalCapabilitiesHex = capabilitiesHex)
+        updateTerminalConfig(updated)
+    }
+
+    fun updateTerminalType(typeHex: String) {
+        val updated = _terminalConfig.value.copy(terminalTypeHex = typeHex)
+        updateTerminalConfig(updated)
+    }
+
+    fun updateMerchantDetails(merchantName: String, ifdSerial: String, mcc: String) {
+        val updated = _terminalConfig.value.copy(
+            merchantName = merchantName,
+            ifdSerialNumber = ifdSerial,
+            merchantCategoryCode = mcc
+        )
+        updateTerminalConfig(updated)
     }
 }

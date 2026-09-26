@@ -44,6 +44,14 @@ import com.yumedev.taptopayandroid.R
 import com.yumedev.taptopayandroid.presentation.ui.components.Keypad
 import com.yumedev.taptopayandroid.presentation.ui.components.PrimaryButton
 
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.clickable
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.runtime.collectAsState
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.yumedev.taptopayandroid.presentation.ui.components.TerminalQuickSwitchBottomSheet
+import com.yumedev.taptopayandroid.presentation.viewmodel.SettingsViewModel
+
 private fun formatCurrency(digits: String): String {
     if (digits.isEmpty()) return "0.00"
     val padded = digits.padStart(3, '0')
@@ -62,8 +70,13 @@ enum class NfcStatus {
 @Composable
 fun HomeScreen(
     onGeneratePayment: (String) -> Unit,
-    innerPadding: PaddingValues = PaddingValues()
+    innerPadding: PaddingValues = PaddingValues(),
+    onOpenSettings: () -> Unit = {},
+    settingsViewModel: SettingsViewModel = hiltViewModel()
 ) {
+    val terminalConfig by settingsViewModel.terminalConfig.collectAsState()
+    var showQuickSwitchSheet by remember { mutableStateOf(false) }
+
     var rawDigits by remember { mutableStateOf("") }
     val displayAmount = formatCurrency(rawDigits)
 
@@ -141,13 +154,42 @@ fun HomeScreen(
         }
 
         Text(
-            text = "$$displayAmount",
+            text = "${terminalConfig.currencySymbol}$displayAmount",
             style = MaterialTheme.typography.displayLarge,
-            modifier = Modifier.padding(24.dp),
+            modifier = Modifier.padding(start = 24.dp, end = 24.dp, top = 24.dp, bottom = 4.dp),
             fontWeight = FontWeight.Bold,
             fontSize = amountFontSize,
             maxLines = 1
         )
+
+        // Interactive Terminal Status Pill
+        Surface(
+            modifier = Modifier
+                .padding(horizontal = 24.dp)
+                .clip(RoundedCornerShape(16.dp))
+                .clickable { showQuickSwitchSheet = true },
+            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "${terminalConfig.currencySymbol} ${terminalConfig.currencyCode}  ·  ${terminalConfig.transactionTypeDisplayName}  ·  TTQ: ${terminalConfig.formattedTtq}",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontWeight = FontWeight.Medium
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Icon(
+                    imageVector = Icons.Default.Edit,
+                    contentDescription = "Edit Terminal Config",
+                    modifier = Modifier.size(12.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
 
         Spacer(modifier = Modifier.weight(1f))
 
@@ -174,6 +216,23 @@ fun HomeScreen(
             leadingIcon = Icons.Default.Nfc
         )
             Spacer(modifier = Modifier.weight(0.3f))
+        }
+
+        if (showQuickSwitchSheet) {
+            TerminalQuickSwitchBottomSheet(
+                terminalConfig = terminalConfig,
+                onDismiss = { showQuickSwitchSheet = false },
+                onCurrencySelected = { preset ->
+                    settingsViewModel.updateCurrency(preset.code, preset.symbol, preset.exponent)
+                },
+                onTransactionTypeSelected = { typeCode ->
+                    settingsViewModel.updateTransactionType(typeCode)
+                },
+                onOpenFullSettings = {
+                    showQuickSwitchSheet = false
+                    onOpenSettings()
+                }
+            )
         }
     }
 }

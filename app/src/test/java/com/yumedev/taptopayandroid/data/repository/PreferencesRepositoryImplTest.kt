@@ -183,4 +183,31 @@ class PreferencesRepositoryImplTest {
         assertThat(sound).isTrue()
         assertThat(detail).isEqualTo(DetailLevel.SIMPLE)
     }
+
+    @Test
+    fun `getTerminalConfig delegates to PreferencesManager`() {
+        val expectedConfig = com.yumedev.taptopayandroid.domain.model.TerminalConfig(currencyCode = "0156", currencySymbol = "¥")
+        every { preferencesManager.getTerminalConfig() } returns expectedConfig
+
+        val result = repository.getTerminalConfig()
+
+        assertThat(result).isEqualTo(expectedConfig)
+        verify(exactly = 1) { preferencesManager.getTerminalConfig() }
+    }
+
+    @Test
+    fun `setTerminalConfig delegates to PreferencesManager`() {
+        val newConfig = com.yumedev.taptopayandroid.domain.model.TerminalConfig(currencyCode = "0978", currencySymbol = "€")
+
+        repository.setTerminalConfig(newConfig)
+
+        verify(exactly = 1) { preferencesManager.saveTerminalConfig(newConfig) }
+    }
+
+    @Test
+    fun `resetTerminalConfig delegates to PreferencesManager`() {
+        repository.resetTerminalConfig()
+
+        verify(exactly = 1) { preferencesManager.resetTerminalConfig() }
+    }
 }

@@ -32,6 +32,20 @@ class PreferencesManager @Inject constructor(
         const val DETAIL_LEVEL_SIMPLE = "simple"
         const val DETAIL_LEVEL_DETAILED = "detailed"
 
+        // Terminal Configuration Keys
+        private const val KEY_CURRENCY_CODE = "terminal_currency_code"
+        private const val KEY_CURRENCY_SYMBOL = "terminal_currency_symbol"
+        private const val KEY_CURRENCY_EXPONENT = "terminal_currency_exponent"
+        private const val KEY_COUNTRY_CODE = "terminal_country_code"
+        private const val KEY_TRANSACTION_TYPE = "terminal_transaction_type"
+        private const val KEY_TERMINAL_TTQ = "terminal_ttq"
+        private const val KEY_TERMINAL_CAPABILITIES = "terminal_capabilities"
+        private const val KEY_TERMINAL_TYPE = "terminal_type"
+        private const val KEY_MERCHANT_NAME = "terminal_merchant_name"
+        private const val KEY_IFD_SERIAL_NUMBER = "terminal_ifd_serial_number"
+        private const val KEY_MERCHANT_CATEGORY_CODE = "terminal_mcc"
+        private const val KEY_ADDITIONAL_TERMINAL_CAPABILITIES = "terminal_additional_capabilities"
+
         @Volatile
         private var instance: PreferencesManager? = null
 
@@ -60,4 +74,43 @@ class PreferencesManager @Inject constructor(
     var detailLevel: String
         get() = sharedPreferences.getString(KEY_DETAIL_LEVEL, DETAIL_LEVEL_DETAILED) ?: DETAIL_LEVEL_DETAILED
         set(value) = sharedPreferences.edit { putString(KEY_DETAIL_LEVEL, value) }
+
+    // Terminal Configuration
+    fun getTerminalConfig(): com.yumedev.taptopayandroid.domain.model.TerminalConfig {
+        return com.yumedev.taptopayandroid.domain.model.TerminalConfig(
+            currencyCode = sharedPreferences.getString(KEY_CURRENCY_CODE, "0840") ?: "0840",
+            currencySymbol = sharedPreferences.getString(KEY_CURRENCY_SYMBOL, "$") ?: "$",
+            currencyExponent = sharedPreferences.getInt(KEY_CURRENCY_EXPONENT, 2),
+            countryCode = sharedPreferences.getString(KEY_COUNTRY_CODE, "0840") ?: "0840",
+            transactionType = sharedPreferences.getString(KEY_TRANSACTION_TYPE, "00") ?: "00",
+            ttqHex = sharedPreferences.getString(KEY_TERMINAL_TTQ, "36204000") ?: "36204000",
+            terminalCapabilitiesHex = sharedPreferences.getString(KEY_TERMINAL_CAPABILITIES, "E0F8C8") ?: "E0F8C8",
+            terminalTypeHex = sharedPreferences.getString(KEY_TERMINAL_TYPE, "22") ?: "22",
+            merchantName = sharedPreferences.getString(KEY_MERCHANT_NAME, "TAP TO PAY SHOP") ?: "TAP TO PAY SHOP",
+            ifdSerialNumber = sharedPreferences.getString(KEY_IFD_SERIAL_NUMBER, "12345678") ?: "12345678",
+            merchantCategoryCode = sharedPreferences.getString(KEY_MERCHANT_CATEGORY_CODE, "5411") ?: "5411",
+            additionalTerminalCapabilitiesHex = sharedPreferences.getString(KEY_ADDITIONAL_TERMINAL_CAPABILITIES, "6000F0A001") ?: "6000F0A001"
+        )
+    }
+
+    fun saveTerminalConfig(config: com.yumedev.taptopayandroid.domain.model.TerminalConfig) {
+        sharedPreferences.edit {
+            putString(KEY_CURRENCY_CODE, config.currencyCode)
+            putString(KEY_CURRENCY_SYMBOL, config.currencySymbol)
+            putInt(KEY_CURRENCY_EXPONENT, config.currencyExponent)
+            putString(KEY_COUNTRY_CODE, config.countryCode)
+            putString(KEY_TRANSACTION_TYPE, config.transactionType)
+            putString(KEY_TERMINAL_TTQ, config.ttqHex)
+            putString(KEY_TERMINAL_CAPABILITIES, config.terminalCapabilitiesHex)
+            putString(KEY_TERMINAL_TYPE, config.terminalTypeHex)
+            putString(KEY_MERCHANT_NAME, config.merchantName)
+            putString(KEY_IFD_SERIAL_NUMBER, config.ifdSerialNumber)
+            putString(KEY_MERCHANT_CATEGORY_CODE, config.merchantCategoryCode)
+            putString(KEY_ADDITIONAL_TERMINAL_CAPABILITIES, config.additionalTerminalCapabilitiesHex)
+        }
+    }
+
+    fun resetTerminalConfig() {
+        saveTerminalConfig(com.yumedev.taptopayandroid.domain.model.TerminalConfig())
+    }
 }

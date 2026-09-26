@@ -274,4 +274,37 @@ class SettingsViewModelTest {
         assertThat(viewModel.soundEnabled.value).isFalse()
         assertThat(viewModel.detailLevel.value).isEqualTo(DetailLevel.SIMPLE)
     }
+
+    @Test
+    fun `updateCurrency updates terminal config state`() {
+        viewModel.updateCurrency("0156", "¥", 2)
+
+        assertThat(viewModel.terminalConfig.value.currencyCode).isEqualTo("0156")
+        assertThat(viewModel.terminalConfig.value.currencySymbol).isEqualTo("¥")
+        assertThat(viewModel.terminalConfig.value.currencyExponent).isEqualTo(2)
+    }
+
+    @Test
+    fun `updateTransactionType updates transaction type code`() {
+        viewModel.updateTransactionType("20")
+
+        assertThat(viewModel.terminalConfig.value.transactionType).isEqualTo("20")
+    }
+
+    @Test
+    fun `updateTtq updates TTQ hex`() {
+        viewModel.updateTtq("26204000")
+
+        assertThat(viewModel.terminalConfig.value.ttqHex).isEqualTo("26204000")
+    }
+
+    @Test
+    fun `resetTerminalConfig restores default terminal config`() {
+        viewModel.updateCurrency("0156", "¥", 2)
+        viewModel.updateTransactionType("20")
+        viewModel.resetTerminalConfig()
+
+        assertThat(viewModel.terminalConfig.value.currencyCode).isEqualTo("0840")
+        assertThat(viewModel.terminalConfig.value.transactionType).isEqualTo("00")
+    }
 }

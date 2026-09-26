@@ -4,6 +4,7 @@ import android.nfc.Tag
 import android.nfc.tech.IsoDep
 import android.util.Log
 import com.yumedev.taptopayandroid.data.parser.EmvTagParser
+import com.yumedev.taptopayandroid.data.preferences.PreferencesManager
 import com.yumedev.taptopayandroid.domain.model.*
 import com.yumedev.taptopayandroid.util.SecureLogger
 import kotlinx.coroutines.Dispatchers
@@ -18,7 +19,8 @@ import javax.inject.Singleton
 
 @Singleton
 class NfcCardReader @Inject constructor(
-    private val emvTagParser: EmvTagParser
+    private val emvTagParser: EmvTagParser,
+    private val preferencesManager: PreferencesManager? = null
 ) {
 
     companion object {
@@ -27,7 +29,12 @@ class NfcCardReader @Inject constructor(
 
     data class DolItem(val tag: String, val length: Int)
 
-    suspend fun readCard(tag: Tag, amountCents: Long? = null): Result<EmvCardData> = withContext(Dispatchers.IO) {
+    suspend fun readCard(
+        tag: Tag,
+        amountCents: Long? = null,
+        terminalConfig: TerminalConfig? = null
+    ): Result<EmvCardData> = withContext(Dispatchers.IO) {
+        val config = terminalConfig ?: preferencesManager?.getTerminalConfig() ?: TerminalConfig()
         var isoDep: IsoDep? = null
         val apduCommands = mutableListOf<ApduCommand>()
         val allRecords = mutableListOf<ByteArray>()
@@ -109,7 +116,7 @@ class NfcCardReader @Inject constructor(
                 SecureLogger.d(TAG) { "Found PDOL (${dolItems.size} items): ${dolItems.joinToString { "${it.tag}:${it.length}B" }}" }
 
                 // Build real EMV terminal transaction data according to EMVCo specifications
-                val pdolData = buildDolData(dolItems, amountCents)
+                val pdolData = buildDolData(dolItems, amountCents, aip = null, terminalConfig = config)
                 SecureLogger.d(TAG) { "Constructed PDOL data (${pdolData.size}B): ${pdolData.toHexString()}" }
 
                 // Build GPO command: 80 A8 00 00 Lc 83 Ld [Data] Le
@@ -259,7 +266,7 @@ class NfcCardReader @Inject constructor(
                     val cdolItems = parseDol(cdol1)
                     if (cdolItems.isNotEmpty()) {
                         SecureLogger.d(TAG) { "Found CDOL1 (${cdolItems.size} items): ${cdolItems.joinToString { "${it.tag}:${it.length}B" }}" }
-                        val cdolData = buildDolData(cdolItems, amountCents, aipBytes)
+                        val cdolData = buildDolData(cdolItems, amountCents, aipBytes, terminalConfig = config)
                         if (cdolData.isNotEmpty() && cdolData.size <= 255) {
                             SecureLogger.d(TAG) { "Constructed CDOL1 data (${cdolData.size}B): ${cdolData.toHexString()}" }
 
@@ -381,7 +388,8 @@ class NfcCardReader @Inject constructor(
     internal fun buildDolData(
         dolItems: List<DolItem>,
         amountCents: Long?,
-        aip: ByteArray? = null
+        aip: ByteArray? = null,
+        terminalConfig: TerminalConfig = TerminalConfig()
     ): ByteArray {
         val output = mutableListOf<Byte>()
 
@@ -390,11 +398,8 @@ class NfcCardReader @Inject constructor(
             val safeLength = item.length.coerceIn(1, 64)
 
             val value = when (item.tag) {
-                // 9F66: Terminal Transaction Qualifiers (TTQ)
-                // 0x36, 0x20, 0x40, 0x00 indicates Contactless EMV (qVSDC) supported,
-                // Contactless MSD supported, Online PIN & Signature supported,
-                // Mobile CVM supported, Online Cryptogram required.
-                "9F66" -> byteArrayOf(0x36.toByte(), 0x20.toByte(), 0x40.toByte(), 0x00.toByte())
+                // 9F66: Terminal Transaction Qualifiers (TTQ - 4 bytes)
+                "9F66" -> parseHexBytes(terminalConfig.ttqHex, safeLength, byteArrayOf(0x36.toByte(), 0x20.toByte(), 0x40.toByte(), 0x00.toByte()))
 
                 // 9F02: Amount, Authorised (Numeric - 6 bytes BCD)
                 "9F02" -> formatBcdAmount(amountCents ?: 0L, safeLength)
@@ -402,29 +407,47 @@ class NfcCardReader @Inject constructor(
                 // 9F03: Amount, Other (Numeric - 6 bytes BCD)
                 "9F03" -> ByteArray(safeLength)
 
-                // 9F1A: Terminal Country Code (2 bytes BCD - 08 40 = USD/USA)
-                "9F1A" -> byteArrayOf(0x08.toByte(), 0x40.toByte())
+                // 9F1A: Terminal Country Code (2 bytes BCD)
+                "9F1A" -> parseHexBytes(terminalConfig.countryCode, safeLength, byteArrayOf(0x08.toByte(), 0x40.toByte()))
 
-                // 5F2A: Transaction Currency Code (2 bytes BCD - 08 40 = USD)
-                "5F2A" -> byteArrayOf(0x08.toByte(), 0x40.toByte())
+                // 5F2A: Transaction Currency Code (2 bytes BCD)
+                "5F2A" -> parseHexBytes(terminalConfig.currencyCode, safeLength, byteArrayOf(0x08.toByte(), 0x40.toByte()))
+
+                // 9F3C: Transaction Reference Currency Code (2 bytes BCD)
+                "9F3C" -> parseHexBytes(terminalConfig.currencyCode, safeLength, byteArrayOf(0x08.toByte(), 0x40.toByte()))
+
+                // 5F36: Transaction Currency Exponent (1 byte)
+                "5F36" -> byteArrayOf(terminalConfig.currencyExponent.toByte())
 
                 // 9A: Transaction Date (3 bytes BCD - YY MM DD)
                 "9A" -> formatBcdDate()
 
-                // 9C: Transaction Type (1 byte - 00 = Purchase)
-                "9C" -> byteArrayOf(0x00.toByte())
+                // 9F21: Transaction Time (3 bytes BCD - HH MM SS)
+                "9F21" -> formatBcdTime()
+
+                // 9C: Transaction Type (1 byte - 00 = Purchase, 01 = Cash, 20 = Refund)
+                "9C" -> parseHexBytes(terminalConfig.transactionType, safeLength, byteArrayOf(0x00.toByte()))
 
                 // 9F37: Unpredictable Number (4 bytes cryptographically random)
                 "9F37" -> ByteArray(safeLength).also { SecureRandom().nextBytes(it) }
 
                 // 9F35: Terminal Type (1 byte - 22 = Attended Online Merchant Terminal)
-                "9F35" -> byteArrayOf(0x22.toByte())
+                "9F35" -> parseHexBytes(terminalConfig.terminalTypeHex, safeLength, byteArrayOf(0x22.toByte()))
 
                 // 9F33: Terminal Capabilities (3 bytes - E0 F8 C8: IC, Magstripe, PIN, Signature, DDA, CDA)
-                "9F33" -> byteArrayOf(0xE0.toByte(), 0xF8.toByte(), 0xC8.toByte())
+                "9F33" -> parseHexBytes(terminalConfig.terminalCapabilitiesHex, safeLength, byteArrayOf(0xE0.toByte(), 0xF8.toByte(), 0xC8.toByte()))
+
+                // 9F40: Additional Terminal Capabilities (5 bytes)
+                "9F40" -> parseHexBytes(terminalConfig.additionalTerminalCapabilitiesHex, safeLength, ByteArray(safeLength))
+
+                // 9F15: Merchant Category Code (2 bytes BCD)
+                "9F15" -> parseHexBytes(terminalConfig.merchantCategoryCode, safeLength, byteArrayOf(0x54.toByte(), 0x11.toByte()))
 
                 // 95: Terminal Verification Results (TVR - 5 bytes 0x00)
                 "95" -> ByteArray(safeLength)
+
+                // 9B: Transaction Status Information (TSI - 2 bytes 0x00)
+                "9B" -> ByteArray(safeLength)
 
                 // 82: Application Interchange Profile (AIP)
                 "82" -> aip?.takeIf { it.size == safeLength } ?: ByteArray(safeLength)
@@ -436,10 +459,16 @@ class NfcCardReader @Inject constructor(
                 "9F34" -> byteArrayOf(0x1F.toByte(), 0x00.toByte(), 0x02.toByte())
 
                 // 9F1E: IFD Serial Number (8 bytes ASCII)
-                "9F1E" -> "12345678".take(safeLength).padEnd(safeLength, '0').toByteArray()
+                "9F1E" -> terminalConfig.ifdSerialNumber.take(safeLength).padEnd(safeLength, '0').toByteArray()
 
                 // 9F4E: Merchant Name and Location
-                "9F4E" -> "TAP TO PAY          ".take(safeLength).padEnd(safeLength, ' ').toByteArray()
+                "9F4E" -> terminalConfig.merchantName.take(safeLength).padEnd(safeLength, ' ').toByteArray()
+
+                // 9F09: Application Version Number
+                "9F09" -> byteArrayOf(0x00.toByte(), 0x02.toByte())
+
+                // 9F1D: Terminal Risk Management Data
+                "9F1D" -> ByteArray(safeLength)
 
                 // Default fallback: zero-padded array of safe length (never exceeds 64B)
                 else -> ByteArray(safeLength)
@@ -478,6 +507,34 @@ class NfcCardReader @Inject constructor(
             result[i] = ((highNibble shl 4) or lowNibble).toByte()
         }
         return result
+    }
+
+    private fun formatBcdTime(): ByteArray {
+        val timeStr = SimpleDateFormat("HHmmss", Locale.US).format(Date())
+        val result = ByteArray(3)
+        for (i in 0 until 3) {
+            val highNibble = timeStr[i * 2].digitToInt(16)
+            val lowNibble = timeStr[i * 2 + 1].digitToInt(16)
+            result[i] = ((highNibble shl 4) or lowNibble).toByte()
+        }
+        return result
+    }
+
+    private fun parseHexBytes(hexStr: String, targetLength: Int, default: ByteArray): ByteArray {
+        val clean = hexStr.replace(" ", "").replace(":", "")
+        if (clean.isEmpty() || clean.length % 2 != 0) return default
+        return try {
+            val bytes = ByteArray(clean.length / 2) { i ->
+                clean.substring(i * 2, i * 2 + 2).toInt(16).toByte()
+            }
+            when {
+                bytes.size == targetLength -> bytes
+                bytes.size < targetLength -> bytes + ByteArray(targetLength - bytes.size)
+                else -> bytes.copyOfRange(0, targetLength)
+            }
+        } catch (_: Exception) {
+            default
+        }
     }
 
     private fun extractAID(response: ByteArray): ByteArray? {

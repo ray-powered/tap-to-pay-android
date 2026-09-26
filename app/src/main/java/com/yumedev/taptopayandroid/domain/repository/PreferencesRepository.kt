@@ -16,6 +16,12 @@ interface PreferencesRepository {
 
     fun setDetailLevel(level: DetailLevel)
 
+    fun getTerminalConfig(): com.yumedev.taptopayandroid.domain.model.TerminalConfig
+
+    fun setTerminalConfig(config: com.yumedev.taptopayandroid.domain.model.TerminalConfig)
+
+    fun resetTerminalConfig()
+
     companion object {
         const val THEME_LIGHT = "light"
         const val THEME_DARK = "dark"

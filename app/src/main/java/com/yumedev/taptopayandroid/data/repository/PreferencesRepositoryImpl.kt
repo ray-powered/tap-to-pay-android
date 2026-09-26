@@ -39,4 +39,16 @@ class PreferencesRepositoryImpl @Inject constructor(
             DetailLevel.DETAILED -> PreferencesManager.DETAIL_LEVEL_DETAILED
         }
     }
+
+    override fun getTerminalConfig(): com.yumedev.taptopayandroid.domain.model.TerminalConfig {
+        return preferencesManager.getTerminalConfig()
+    }
+
+    override fun setTerminalConfig(config: com.yumedev.taptopayandroid.domain.model.TerminalConfig) {
+        preferencesManager.saveTerminalConfig(config)
+    }
+
+    override fun resetTerminalConfig() {
+        preferencesManager.resetTerminalConfig()
+    }
 }

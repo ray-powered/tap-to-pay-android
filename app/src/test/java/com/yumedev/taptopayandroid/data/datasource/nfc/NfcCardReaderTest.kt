@@ -163,4 +163,35 @@ class NfcCardReaderTest {
         // 9C Transaction Type: 00
         assertThat(data[12]).isEqualTo(0x00.toByte())
     }
+
+    @Test
+    fun `buildDolData uses custom TerminalConfig values`() {
+        val dolItems = listOf(
+            NfcCardReader.DolItem("5F2A", 2), // Currency: CNY (0156)
+            NfcCardReader.DolItem("9F1A", 2), // Country: China (0156)
+            NfcCardReader.DolItem("9C", 1),   // Type: Refund (20)
+            NfcCardReader.DolItem("9F66", 4)  // TTQ: 26 20 40 00
+        )
+
+        val customConfig = com.yumedev.taptopayandroid.domain.model.TerminalConfig(
+            currencyCode = "0156",
+            countryCode = "0156",
+            transactionType = "20",
+            ttqHex = "26204000"
+        )
+
+        val data = reader.buildDolData(dolItems, amountCents = 1000L, terminalConfig = customConfig)
+
+        assertThat(data).hasLength(9)
+        // 5F2A: 01 56
+        assertThat(data[0]).isEqualTo(0x01.toByte())
+        assertThat(data[1]).isEqualTo(0x56.toByte())
+        // 9F1A: 01 56
+        assertThat(data[2]).isEqualTo(0x01.toByte())
+        assertThat(data[3]).isEqualTo(0x56.toByte())
+        // 9C: 20
+        assertThat(data[4]).isEqualTo(0x20.toByte())
+        // 9F66: 26 20 40 00
+        assertThat(data[5]).isEqualTo(0x26.toByte())
+    }
 }

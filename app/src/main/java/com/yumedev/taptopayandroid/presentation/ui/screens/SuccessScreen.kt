@@ -92,7 +92,12 @@ fun SuccessScreen(
                         append("${stringResource(id = R.string.total_label)} ")
                     }
                     withStyle(style = SpanStyle(fontWeight = FontWeight.Bold)) {
-                        append("$$amount")
+                        val formattedAmount = if (amount.any { !it.isDigit() && it != '.' && it != ',' }) {
+                            amount
+                        } else {
+                            "$$amount"
+                        }
+                        append(formattedAmount)
                     }
                 },
                 modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),

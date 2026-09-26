@@ -45,7 +45,10 @@ fun NavGraph(
                 onGeneratePayment = { amount ->
                     navController.navigate(NavigationRoutes.TapToPay.createRoute(amount))
                 },
-                innerPadding = innerPadding
+                innerPadding = innerPadding,
+                onOpenSettings = {
+                    navController.navigate(NavigationRoutes.Settings.route)
+                }
             )
         }
 
