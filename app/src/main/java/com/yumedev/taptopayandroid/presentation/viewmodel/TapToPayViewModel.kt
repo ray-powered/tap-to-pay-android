@@ -16,7 +16,9 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+import com.yumedev.taptopayandroid.domain.model.CvmRequirement
 import com.yumedev.taptopayandroid.domain.model.TerminalConfig
+import com.yumedev.taptopayandroid.domain.model.TransactionDecision
 import com.yumedev.taptopayandroid.domain.usecase.GetTerminalConfigUseCase
 
 @HiltViewModel
@@ -64,6 +66,7 @@ class TapToPayViewModel @Inject constructor(
 
     private fun processNfcTag(tag: Tag) {
         viewModelScope.launch {
+            _nfcState.value = NfcState.Reading
             val amountCents = parseAmountToCents(_lastAmount.value)
             val currentConfig = getTerminalConfigUseCase?.invoke() ?: _terminalConfig.value
             _terminalConfig.value = currentConfig
@@ -72,12 +75,33 @@ class TapToPayViewModel @Inject constructor(
             _nfcState.value = result.fold(
                 onSuccess = { emvCardData ->
                     _lastEmvCardData.value = emvCardData
-                    playSuccessSoundUseCase()
-                    NfcState.Success(emvCardData)
+                    val isSeePhone = emvCardData.transactionAnalysis.requiresScreenCheck ||
+                        emvCardData.transactionAnalysis.decision == TransactionDecision.SEE_PHONE_CDCVM ||
+                        emvCardData.transactionAnalysis.cvmRequirement == CvmRequirement.CONSUMER_DEVICE_CVM_REQUIRED
+
+                    if (isSeePhone) {
+                        playFailedSoundUseCase()
+                        NfcState.SeePhone(
+                            instructions = emvCardData.transactionAnalysis.screenCheckInstructions
+                                ?: "Customer must authenticate on device (Face ID / Fingerprint / Passcode), then tap again.",
+                            lastData = emvCardData
+                        )
+                    } else {
+                        playSuccessSoundUseCase()
+                        NfcState.Success(emvCardData)
+                    }
                 },
                 onFailure = { exception ->
-                    playFailedSoundUseCase()
-                    NfcState.Error(exception.message ?: "Unknown error reading card")
+                    val errorMsg = exception.message ?: "Unknown error reading card"
+                    if (errorMsg.contains("69 86") || errorMsg.contains("See Phone", ignoreCase = true)) {
+                        playFailedSoundUseCase()
+                        NfcState.SeePhone(
+                            instructions = "Card or device requires on-device authentication. Please unlock your phone and tap again."
+                        )
+                    } else {
+                        playFailedSoundUseCase()
+                        NfcState.Error(errorMsg)
+                    }
                 }
             )
         }
