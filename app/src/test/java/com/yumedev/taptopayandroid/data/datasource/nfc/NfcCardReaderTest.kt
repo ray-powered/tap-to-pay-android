@@ -145,8 +145,8 @@ class NfcCardReaderTest {
         // Total length: 4 + 6 + 2 + 1 = 13 bytes
         assertThat(data).hasLength(13)
 
-        // 9F66 TTQ: byte 0 should be 0x36
-        assertThat(data[0]).isEqualTo(0x36.toByte())
+        // 9F66 TTQ: byte 0 should be 0x76 (qVSDC + Contactless EMV + Contact Chip + Online PIN + Signature)
+        assertThat(data[0]).isEqualTo(0x76.toByte())
 
         // 9F02 Amount: 00 00 00 00 25 50
         assertThat(data[4]).isEqualTo(0x00.toByte())
