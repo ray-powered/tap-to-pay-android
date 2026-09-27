@@ -67,9 +67,6 @@ fun SuccessScreen(
     val bannerAlpha = remember { Animatable(0f) }
     val bannerSlide = remember { Animatable(-18f) }
 
-    val amountAlpha = remember { Animatable(0f) }
-    val amountSlide = remember { Animatable(24f) }
-
     val receiptAlpha = remember { Animatable(0f) }
     val receiptSlide = remember { Animatable(32f) }
 
@@ -107,21 +104,6 @@ fun SuccessScreen(
             delay(100)
             launch { rippleScale.animateTo(1.7f, tween(650, easing = FastOutSlowInEasing)) }
             launch { rippleAlpha.animateTo(0f, tween(650, easing = LinearEasing)) }
-        }
-
-        // Amount card entrance
-        launch {
-            delay(120)
-            launch { amountAlpha.animateTo(1f, tween(250)) }
-            launch {
-                amountSlide.animateTo(
-                    0f,
-                    spring(
-                        dampingRatio = Spring.DampingRatioLowBouncy,
-                        stiffness = Spring.StiffnessMediumLow
-                    )
-                )
-            }
         }
 
         // Receipt slip entrance (paper slide-out feel)
@@ -242,36 +224,40 @@ fun SuccessScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            // ─── 1. POS Terminal Top Bar with 4 Contactless LEDs ───
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
-                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+            // ─── 1. POS Terminal Header with 4 Contactless LEDs ───
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 4.dp, vertical = 2.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    // Contactless 4-LED Animated Indicator
-                    PosAnimatedLedIndicator(
-                        isDeclined = analysis.isDeclined,
-                        ledColorMode = config.ledColorMode
+                    Box(
+                        modifier = Modifier
+                            .size(8.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFF00E676))
                     )
-
                     Text(
-                        text = if (config.ledColorMode == PosLedColorMode.EMV_GREEN) "EMV 4-GREEN POS" else "UPAY 4-COLOR POS",
+                        text = config.merchantName.uppercase(),
                         style = MaterialTheme.typography.labelSmall,
                         fontFamily = FontFamily.Monospace,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
+
+                PosAnimatedLedIndicator(
+                    isDeclined = analysis.isDeclined,
+                    ledColorMode = config.ledColorMode
+                )
             }
 
-            // ─── 2. POS Hero Status Banner ───
+            // ─── 2. POS Hero Status Banner (with Amount Included) ───
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -281,23 +267,23 @@ fun SuccessScreen(
                     },
                 shape = RoundedCornerShape(16.dp),
                 color = statusConfig.bgColor,
-                shadowElevation = 4.dp
+                shadowElevation = 3.dp
             ) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(20.dp),
+                        .padding(vertical = 20.dp, horizontal = 16.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Box(
                         contentAlignment = Alignment.Center,
-                        modifier = Modifier.size(76.dp)
+                        modifier = Modifier.size(68.dp)
                     ) {
                         // Expanding celebratory ripple/halo wave
                         if (rippleAlpha.value > 0.01f) {
                             Box(
                                 modifier = Modifier
-                                    .size(56.dp)
+                                    .size(52.dp)
                                     .graphicsLayer {
                                         scaleX = rippleScale.value
                                         scaleY = rippleScale.value
@@ -311,7 +297,7 @@ fun SuccessScreen(
                         // Main Status Icon with spring bounce
                         Box(
                             modifier = Modifier
-                                .size(56.dp)
+                                .size(52.dp)
                                 .clip(CircleShape)
                                 .background(statusConfig.contentColor.copy(alpha = 0.18f))
                                 .graphicsLayer {
@@ -324,7 +310,7 @@ fun SuccessScreen(
                             Icon(
                                 imageVector = statusConfig.icon,
                                 contentDescription = null,
-                                modifier = Modifier.size(36.dp),
+                                modifier = Modifier.size(32.dp),
                                 tint = statusConfig.contentColor
                             )
                         }
@@ -332,7 +318,29 @@ fun SuccessScreen(
 
                     Spacer(modifier = Modifier.height(10.dp))
 
+                    // Prominent Sale Amount inside the Hero Banner
+                    Text(
+                        text = formattedAmount,
+                        style = MaterialTheme.typography.displaySmall,
+                        fontFamily = FontFamily.Monospace,
+                        fontWeight = FontWeight.Black,
+                        color = statusConfig.contentColor,
+                        textAlign = TextAlign.Center
+                    )
+
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    Text(
+                        text = statusConfig.title,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = statusConfig.contentColor,
+                        textAlign = TextAlign.Center,
+                        letterSpacing = 0.5.sp
+                    )
+
                     if (statusConfig.badgeText.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(6.dp))
                         Surface(
                             shape = RoundedCornerShape(20.dp),
                             color = statusConfig.badgeBgColor,
@@ -349,18 +357,7 @@ fun SuccessScreen(
                                 modifier = Modifier.padding(horizontal = 10.dp, vertical = 3.dp)
                             )
                         }
-
-                        Spacer(modifier = Modifier.height(8.dp))
                     }
-
-                    Text(
-                        text = statusConfig.title,
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Black,
-                        color = statusConfig.contentColor,
-                        textAlign = TextAlign.Center,
-                        letterSpacing = 1.sp
-                    )
 
                     Spacer(modifier = Modifier.height(4.dp))
 
@@ -370,43 +367,6 @@ fun SuccessScreen(
                         fontWeight = FontWeight.Medium,
                         color = statusConfig.contentColor.copy(alpha = 0.85f),
                         textAlign = TextAlign.Center
-                    )
-                }
-            }
-
-            // ─── 3. Amount Display ───
-            Surface(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .graphicsLayer {
-                        alpha = amountAlpha.value
-                        translationY = amountSlide.value
-                    },
-                shape = RoundedCornerShape(14.dp),
-                color = MaterialTheme.colorScheme.surface,
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 16.dp, horizontal = 20.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Text(
-                        text = "TOTAL SALE AMOUNT",
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        letterSpacing = 1.sp
-                    )
-
-                    Spacer(modifier = Modifier.height(4.dp))
-
-                    Text(
-                        text = formattedAmount,
-                        style = MaterialTheme.typography.displaySmall,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
                     )
                 }
             }

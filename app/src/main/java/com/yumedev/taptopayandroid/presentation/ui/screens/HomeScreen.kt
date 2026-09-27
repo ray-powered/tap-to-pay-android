@@ -7,11 +7,11 @@ import android.content.IntentFilter
 import android.nfc.NfcAdapter
 import androidx.core.content.ContextCompat
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.text.font.FontFamily
 import com.yumedev.taptopayandroid.domain.model.*
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.Nfc
 import androidx.compose.material3.Icon
@@ -28,14 +28,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.yumedev.taptopayandroid.R
 import com.yumedev.taptopayandroid.presentation.ui.components.Keypad
 import com.yumedev.taptopayandroid.presentation.ui.components.PrimaryButton
 
@@ -130,66 +127,147 @@ fun HomeScreen(
             .fillMaxSize()
             .padding(innerPadding)
     ) {
-        // NFC Status Badge
-        NfcStatusBadge(
-            status = nfcStatus,
-            modifier = Modifier
-                .align(Alignment.TopEnd)
-                .padding(16.dp)
-        )
-
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(top = 16.dp, bottom = 8.dp)
+                .padding(vertical = 12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Spacer(modifier = Modifier.weight(0.4f))
-
-            // Amount and Terminal Status Header (POS Display Panel)
-            Surface(
+            // ─── 1. POS Terminal Top Bar: Identity & Quick Switch ───
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
-                shape = RoundedCornerShape(14.dp),
-                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+                    .padding(horizontal = 20.dp, vertical = 4.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Column(
+                // Merchant Name with NFC Status Indicator
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(8.dp)
+                            .clip(CircleShape)
+                            .background(
+                                when (nfcStatus) {
+                                    NfcStatus.READY -> Color(0xFF00E676)
+                                    NfcStatus.DISABLED -> Color(0xFFFFB300)
+                                    NfcStatus.NOT_SUPPORTED -> Color(0xFFE53935)
+                                }
+                            )
+                    )
+                    Text(
+                        text = terminalConfig.merchantName.uppercase(),
+                        style = MaterialTheme.typography.labelMedium,
+                        fontFamily = FontFamily.Monospace,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                // Quick Currency & Mode Switch Pill
+                Surface(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 20.dp, vertical = 16.dp)
+                        .clip(RoundedCornerShape(20.dp))
+                        .clickable { showQuickSwitchSheet = true },
+                    shape = RoundedCornerShape(20.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
+                    border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant)
                 ) {
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         Text(
-                            text = "SALE AMOUNT",
+                            text = "${terminalConfig.currencyCode} · ${terminalConfig.transactionTypeDisplayName}",
                             style = MaterialTheme.typography.labelSmall,
                             fontFamily = FontFamily.Monospace,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            letterSpacing = 1.sp
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Icon(
+                            imageVector = Icons.Default.Edit,
+                            contentDescription = "Quick Config",
+                            modifier = Modifier.size(12.dp),
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+            }
+
+            // NFC Warning Banner if disabled
+            if (nfcStatus != NfcStatus.READY) {
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 6.dp),
+                    shape = RoundedCornerShape(8.dp),
+                    color = MaterialTheme.colorScheme.errorContainer
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Error,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp),
+                            tint = MaterialTheme.colorScheme.onErrorContainer
                         )
                         Text(
-                            text = "TID: ${terminalConfig.ifdSerialNumber}",
-                            style = MaterialTheme.typography.labelSmall,
-                            fontFamily = FontFamily.Monospace,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                            text = if (nfcStatus == NfcStatus.DISABLED) "NFC is turned off. Please enable NFC in Android Settings." else "NFC is not supported on this device.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onErrorContainer
                         )
                     }
+                }
+            }
 
-                    Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.weight(0.5f))
 
-                    val amountFontSize = when {
-                        displayAmount.length <= 6 -> 52.sp
-                        displayAmount.length <= 9 -> 40.sp
-                        else -> 32.sp
-                    }
+            // ─── 2. POS Crisp Amount Display ───
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = "TOTAL SALE AMOUNT",
+                    style = MaterialTheme.typography.labelSmall,
+                    fontFamily = FontFamily.Monospace,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                    letterSpacing = 1.sp
+                )
 
+                Spacer(modifier = Modifier.height(6.dp))
+
+                val amountFontSize = when {
+                    displayAmount.length <= 6 -> 52.sp
+                    displayAmount.length <= 9 -> 40.sp
+                    else -> 32.sp
+                }
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
                     Text(
-                        text = "${terminalConfig.currencySymbol}$displayAmount",
+                        text = terminalConfig.currencySymbol,
+                        style = MaterialTheme.typography.displayMedium,
+                        fontFamily = FontFamily.Monospace,
+                        fontWeight = FontWeight.Medium,
+                        fontSize = (amountFontSize.value * 0.7f).sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = displayAmount,
                         style = MaterialTheme.typography.displayLarge,
                         fontFamily = FontFamily.Monospace,
                         fontWeight = FontWeight.Black,
@@ -198,46 +276,22 @@ fun HomeScreen(
                         overflow = TextOverflow.Ellipsis,
                         color = MaterialTheme.colorScheme.onSurface
                     )
-
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    // Interactive Terminal Status Pill
-                    Surface(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(8.dp))
-                            .clickable { showQuickSwitchSheet = true },
-                        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.8f),
-                        border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant)
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = "${terminalConfig.currencyCode}  ·  ${terminalConfig.transactionTypeDisplayName}  ·  TTQ: ${terminalConfig.formattedTtq}",
-                                style = MaterialTheme.typography.labelSmall,
-                                fontFamily = FontFamily.Monospace,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                fontWeight = FontWeight.Bold,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier.weight(1f, fill = false)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Icon(
-                                imageVector = Icons.Default.Edit,
-                                contentDescription = "Edit Terminal Config",
-                                modifier = Modifier.size(12.dp),
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                        }
-                    }
                 }
+
+                Spacer(modifier = Modifier.height(6.dp))
+
+                Text(
+                    text = "TID: ${terminalConfig.ifdSerialNumber}  ·  TTQ: ${terminalConfig.formattedTtq}",
+                    style = MaterialTheme.typography.labelSmall,
+                    fontFamily = FontFamily.Monospace,
+                    fontSize = 10.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                )
             }
 
-            Spacer(modifier = Modifier.weight(1f))
+            Spacer(modifier = Modifier.weight(0.8f))
 
+            // ─── 3. POS Tactile Number Keypad ───
             Keypad(
                 onNumberClick = { number ->
                     if (rawDigits.isEmpty() && number == 0) return@Keypad
@@ -253,13 +307,14 @@ fun HomeScreen(
 
             Spacer(modifier = Modifier.weight(0.4f))
 
+            // ─── 4. POS Primary Action Button ───
             PrimaryButton(
-                text = "ENTER / CONFIRM",
+                text = if (displayAmount == "0.00") "ENTER AMOUNT" else "CHARGE  ${terminalConfig.currencySymbol}$displayAmount",
                 onClick = { onGeneratePayment(displayAmount) },
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 4.dp),
-                isEnable = displayAmount != "0.00",
+                isEnable = displayAmount != "0.00" && nfcStatus == NfcStatus.READY,
                 leadingIcon = Icons.Default.Nfc
             )
 
@@ -285,58 +340,3 @@ fun HomeScreen(
     }
 }
 
-@Composable
-private fun NfcStatusBadge(
-    status: NfcStatus,
-    modifier: Modifier = Modifier
-) {
-    val text: String
-    val icon: ImageVector
-    val backgroundColor: Color
-    val contentColor: Color
-
-    when (status) {
-        NfcStatus.READY -> {
-            text = stringResource(id = R.string.nfc_ready)
-            icon = Icons.Default.CheckCircle
-            backgroundColor = MaterialTheme.colorScheme.primaryContainer
-            contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-        }
-        NfcStatus.DISABLED -> {
-            text = stringResource(id = R.string.nfc_disabled)
-            icon = Icons.Default.Error
-            backgroundColor = MaterialTheme.colorScheme.errorContainer
-            contentColor = MaterialTheme.colorScheme.onErrorContainer
-        }
-        NfcStatus.NOT_SUPPORTED -> {
-            text = stringResource(id = R.string.nfc_not_supported)
-            icon = Icons.Default.Error
-            backgroundColor = MaterialTheme.colorScheme.errorContainer
-            contentColor = MaterialTheme.colorScheme.onErrorContainer
-        }
-    }
-
-    Surface(
-        modifier = modifier.clip(RoundedCornerShape(20.dp)),
-        color = backgroundColor
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = text,
-                modifier = Modifier.size(16.dp),
-                tint = contentColor
-            )
-            Spacer(modifier = Modifier.width(6.dp))
-            Text(
-                text = text,
-                style = MaterialTheme.typography.labelSmall,
-                color = contentColor,
-                fontWeight = FontWeight.Medium
-            )
-        }
-    }
-}
