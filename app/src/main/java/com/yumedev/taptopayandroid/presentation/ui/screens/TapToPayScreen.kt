@@ -4,6 +4,7 @@ import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -35,6 +36,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.yumedev.taptopayandroid.R
 import com.yumedev.taptopayandroid.domain.model.EmvCardData
 import com.yumedev.taptopayandroid.domain.model.NfcState
+import com.yumedev.taptopayandroid.domain.model.PosLedColorMode
 import com.yumedev.taptopayandroid.presentation.util.HapticHelper
 import com.yumedev.taptopayandroid.presentation.viewmodel.TapToPayViewModel
 
@@ -51,6 +53,7 @@ fun TapToPayScreen(
     val terminalConfig by viewModel.terminalConfig.collectAsState()
     val currentApduCommand by viewModel.currentApduCommand.collectAsState()
     val apduPulseCount by viewModel.apduPulseCount.collectAsState()
+    val liveApduLogs by viewModel.liveApduLogs.collectAsState()
     val context = LocalContext.current
     val hapticFeedback = LocalHapticFeedback.current
 
@@ -89,82 +92,145 @@ fun TapToPayScreen(
         modifier = Modifier
             .fillMaxSize()
             .padding(innerPadding)
-            .padding(horizontal = 20.dp, vertical = 14.dp),
+            .padding(horizontal = 16.dp, vertical = 10.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.SpaceBetween
     ) {
-        // ─── 1. POS Terminal Header Bar & 4 Contactless LEDs ───
+        // ─── 1. POS Terminal Hardware Bezel & 4 Contactless LEDs ───
         Surface(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(14.dp),
-            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+            shape = RoundedCornerShape(12.dp),
+            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
         ) {
-            Row(
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 10.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                    .padding(horizontal = 14.dp, vertical = 10.dp)
             ) {
-                // Merchant & Terminal ID
-                Column {
+                // Top Hardware Metadata Row
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(7.dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFF00E676))
+                        )
+                        Text(
+                            text = terminalConfig.merchantName.uppercase(),
+                            style = MaterialTheme.typography.labelSmall,
+                            fontFamily = FontFamily.Monospace,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+
                     Text(
-                        text = terminalConfig.merchantName.uppercase(),
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Text(
-                        text = "TID: ${terminalConfig.ifdSerialNumber}",
+                        text = "TID:${terminalConfig.ifdSerialNumber} · ONLINE",
                         style = MaterialTheme.typography.labelSmall,
                         fontFamily = FontFamily.Monospace,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
                     )
                 }
 
-                // Standard EMV 4-LED Indicator
-                PosLedIndicator(
-                    isWaiting = !isSeePhone && !isReading,
-                    isReading = isReading,
-                    isSeePhone = isSeePhone,
-                    apduPulseCount = apduPulseCount
-                )
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // Prominent Physical Contactless 4-LED Bar
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Contactless Wave Mark
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Icon(
+                            painter = painterResource(id = R.drawable.tap_to_pay),
+                            contentDescription = "Contactless",
+                            modifier = Modifier.size(20.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            text = "CONTACTLESS",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontFamily = FontFamily.Monospace,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 9.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+
+                    // 4 Physical POS LEDs
+                    PosPhysicalLedModule(
+                        isWaiting = !isSeePhone && !isReading,
+                        isReading = isReading,
+                        isSeePhone = isSeePhone,
+                        apduPulseCount = apduPulseCount,
+                        ledColorMode = terminalConfig.ledColorMode,
+                        onToggleMode = { viewModel.toggleLedColorMode() }
+                    )
+                }
             }
         }
 
-        // ─── 2. Sale Amount Card ───
+        // ─── 2. POS High-Contrast Financial Display ───
         Surface(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(16.dp),
+            shape = RoundedCornerShape(12.dp),
             color = MaterialTheme.colorScheme.surface,
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+            border = BorderStroke(1.2.dp, MaterialTheme.colorScheme.outlineVariant),
             shadowElevation = 2.dp
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 16.dp, horizontal = 20.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
+                    .padding(vertical = 12.dp, horizontal = 18.dp)
             ) {
-                Text(
-                    text = "SALE AMOUNT",
-                    style = MaterialTheme.typography.labelSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    letterSpacing = 1.sp
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "SALE TRANSACTION",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontFamily = FontFamily.Monospace,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFFFFB300),
+                        letterSpacing = 1.sp
+                    )
+                    Text(
+                        text = "BATCH: 0001 · TRACE: 083921",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontFamily = FontFamily.Monospace,
+                        fontSize = 9.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                    )
+                }
+
                 Spacer(modifier = Modifier.height(4.dp))
+
                 Text(
                     text = formattedAmount,
                     style = MaterialTheme.typography.displaySmall,
+                    fontFamily = FontFamily.Monospace,
                     fontWeight = FontWeight.Black,
                     color = MaterialTheme.colorScheme.onSurface
                 )
             }
         }
 
-        // ─── 3. Center Hero Zone: Tap / Reading / See Phone ───
+        // ─── 3. Center Hero Zone: POS Landing Pad / APDU HUD / See Phone ───
         Box(
             modifier = Modifier
                 .weight(1f)
@@ -177,10 +243,13 @@ fun TapToPayScreen(
                     SeePhoneRetryContent(instructions = instructions)
                 }
                 isReading -> {
-                    ReadingCardContent(currentApdu = currentApduCommand)
+                    ReadingCardPosHud(
+                        currentApdu = currentApduCommand,
+                        liveLogs = liveApduLogs
+                    )
                 }
                 else -> {
-                    WaitingTapContent()
+                    PosContactlessLandingPad()
                 }
             }
         }
@@ -189,7 +258,7 @@ fun TapToPayScreen(
         Column(
             modifier = Modifier.fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             // Supported payment badges
             Row(
@@ -216,27 +285,29 @@ fun TapToPayScreen(
                 }
             }
 
-            // POS Cancel Button
-            OutlinedButton(
+            // POS Cancel Button (Emergency red action)
+            Button(
                 onClick = onCancel,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(48.dp),
-                shape = RoundedCornerShape(12.dp),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.5f)),
-                colors = ButtonDefaults.outlinedButtonColors(
+                    .height(46.dp),
+                shape = RoundedCornerShape(10.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.error.copy(alpha = 0.15f),
                     contentColor = MaterialTheme.colorScheme.error
-                )
+                ),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.6f))
             ) {
                 Icon(
                     imageVector = Icons.Default.Close,
                     contentDescription = null,
-                    modifier = Modifier.size(18.dp)
+                    modifier = Modifier.size(16.dp)
                 )
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(6.dp))
                 Text(
                     text = "CANCEL TRANSACTION",
                     style = MaterialTheme.typography.labelLarge,
+                    fontFamily = FontFamily.Monospace,
                     fontWeight = FontWeight.Bold,
                     letterSpacing = 0.5.sp
                 )
@@ -245,24 +316,24 @@ fun TapToPayScreen(
     }
 }
 
-// ─── EMV / UnionPay Contactless 4-LED Indicator (Blue, Yellow, Green, Red) ───
+// ─── Contactless 4-LED Physical Module (EMV 4-Green & UnionPay 4-Color) ───
 
 @Composable
-private fun PosLedIndicator(
+fun PosPhysicalLedModule(
     isWaiting: Boolean,
     isReading: Boolean,
     isSeePhone: Boolean,
-    apduPulseCount: Int = 0
+    apduPulseCount: Int,
+    ledColorMode: PosLedColorMode,
+    onToggleMode: () -> Unit
 ) {
-    // Standard Contactless POS 4-LED Colors: Blue, Yellow, Green, Red
-    val blueColor = Color(0xFF2979FF)     // LED 1: Blue (Power / RF Field / Reader Ready)
-    val yellowColor = Color(0xFFFFB300)   // LED 2: Yellow (Processing / Card Detected / APDU Transmission)
-    val greenColor = Color(0xFF00E676)    // LED 3: Green (Success / Approved)
-    val redColor = Color(0xFFE53935)      // LED 4: Red (Declined / Error)
+    val greenColor = Color(0xFF00E676)
+    val blueColor = Color(0xFF2979FF)
+    val yellowColor = Color(0xFFFFB300)
+    val redColor = Color(0xFFE53935)
+    val inactiveAlpha = 0.15f
 
-    val inactiveAlpha = 0.2f
-
-    // Fast blink animation for Yellow LED 2 during APDU transmission / reading
+    // Fast blink animation for LED 2 during APDU transmission / reading (120ms cycle)
     val infiniteTransition = rememberInfiniteTransition(label = "posLedTransition")
     val led2BlinkAlpha by infiniteTransition.animateFloat(
         initialValue = 1f,
@@ -274,12 +345,12 @@ private fun PosLedIndicator(
         label = "led2Blink"
     )
 
-    // Pulsing attention wave for See Phone (Two-Tap CDCVM)
+    // Pulsing attention wave for See Phone (CDCVM)
     val seePhonePulseAlpha by infiniteTransition.animateFloat(
         initialValue = 1f,
         targetValue = 0.25f,
         animationSpec = infiniteRepeatable(
-            animation = tween(450, easing = FastOutSlowInEasing),
+            animation = tween(400, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
         ),
         label = "seePhonePulse"
@@ -290,222 +361,436 @@ private fun PosLedIndicator(
     LaunchedEffect(apduPulseCount) {
         if (isReading && apduPulseCount > 0) {
             pulseScale.snapTo(1.35f)
-            pulseScale.animateTo(1f, animationSpec = tween(100, easing = FastOutSlowInEasing))
+            pulseScale.animateTo(1f, animationSpec = tween(110, easing = FastOutSlowInEasing))
         }
     }
 
-    Row(
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        // LED 1: BLUE (RF Field / Reader Ready)
-        // Solid Blue when terminal is energized and waiting for card or card in field
-        Box(
-            modifier = Modifier
-                .size(12.dp)
-                .clip(CircleShape)
-                .background(blueColor)
-        )
+    // Determine colors and alphas for the 4 physical lenses
+    val (c1, a1, s1) = when (ledColorMode) {
+        PosLedColorMode.EMV_GREEN -> Triple(greenColor, 1f, 1f)
+        PosLedColorMode.UNIONPAY_COLOR -> Triple(blueColor, 1f, 1f)
+    }
 
-        // LED 2: YELLOW (Processing / Card Detected / APDU Transmission / See Phone)
-        val (led2Alpha, led2Scale) = when {
-            isReading -> Pair(led2BlinkAlpha, pulseScale.value)
-            isSeePhone -> Pair(seePhonePulseAlpha, 1f)
-            else -> Pair(inactiveAlpha, 1f)
+    val (c2, a2, s2) = when {
+        isReading -> {
+            val color = if (ledColorMode == PosLedColorMode.EMV_GREEN) greenColor else yellowColor
+            Triple(color, led2BlinkAlpha, pulseScale.value)
         }
-        Box(
-            modifier = Modifier
-                .size(12.dp)
-                .scale(led2Scale)
-                .clip(CircleShape)
-                .background(yellowColor.copy(alpha = led2Alpha))
-        )
+        isSeePhone -> {
+            Triple(yellowColor, seePhonePulseAlpha, 1f)
+        }
+        else -> {
+            val color = if (ledColorMode == PosLedColorMode.EMV_GREEN) greenColor else yellowColor
+            Triple(color, inactiveAlpha, 1f)
+        }
+    }
 
-        // LED 3: GREEN (Transaction Success / Approved)
-        // Inactive during waiting/reading, lights up on success
-        Box(
-            modifier = Modifier
-                .size(12.dp)
-                .clip(CircleShape)
-                .background(greenColor.copy(alpha = inactiveAlpha))
-        )
+    val (c3, a3, s3) = when (ledColorMode) {
+        PosLedColorMode.EMV_GREEN -> Triple(greenColor, inactiveAlpha, 1f)
+        PosLedColorMode.UNIONPAY_COLOR -> Triple(greenColor, inactiveAlpha, 1f)
+    }
 
-        // LED 4: RED (Declined / Error)
-        // Inactive during waiting/reading
+    val (c4, a4, s4) = when (ledColorMode) {
+        PosLedColorMode.EMV_GREEN -> Triple(greenColor, inactiveAlpha, 1f)
+        PosLedColorMode.UNIONPAY_COLOR -> Triple(redColor, inactiveAlpha, 1f)
+    }
+
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        // Clickable LED Standard Toggle Badge
+        Surface(
+            shape = RoundedCornerShape(6.dp),
+            color = Color(0xFF1E232A),
+            border = BorderStroke(1.dp, Color(0xFF384352)),
+            modifier = Modifier.clickable { onToggleMode() }
+        ) {
+            Text(
+                text = if (ledColorMode == PosLedColorMode.EMV_GREEN) "EMV 4-GREEN" else "UPAY 4-COLOR",
+                style = MaterialTheme.typography.labelSmall,
+                fontFamily = FontFamily.Monospace,
+                fontWeight = FontWeight.Bold,
+                fontSize = 9.sp,
+                color = if (ledColorMode == PosLedColorMode.EMV_GREEN) Color(0xFF00E676) else Color(0xFF2979FF),
+                modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
+            )
+        }
+
+        // Hardware Bezel housing the 4 physical lenses
+        Surface(
+            shape = RoundedCornerShape(8.dp),
+            color = Color(0xFF101418),
+            border = BorderStroke(1.2.dp, Color(0xFF2E3844)),
+            shadowElevation = 3.dp
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
+                horizontalArrangement = Arrangement.spacedBy(7.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                PosSingleLedLens(number = "1", color = c1, alpha = a1, scale = s1)
+                PosSingleLedLens(number = "2", color = c2, alpha = a2, scale = s2)
+                PosSingleLedLens(number = "3", color = c3, alpha = a3, scale = s3)
+                PosSingleLedLens(number = "4", color = c4, alpha = a4, scale = s4)
+            }
+        }
+    }
+}
+
+@Composable
+private fun PosSingleLedLens(
+    number: String,
+    color: Color,
+    alpha: Float,
+    scale: Float
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(2.dp)
+    ) {
+        // Metallic Bezel Ring + Acrylic Diode Lens
         Box(
             modifier = Modifier
-                .size(12.dp)
+                .size(16.dp)
+                .scale(scale)
                 .clip(CircleShape)
-                .background(redColor.copy(alpha = inactiveAlpha))
+                .background(Color(0xFF222933))
+                .border(1.2.dp, Color(0xFF3F4B5A), CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            // Emissive Glowing Core
+            Box(
+                modifier = Modifier
+                    .size(10.dp)
+                    .clip(CircleShape)
+                    .background(color.copy(alpha = alpha))
+            )
+        }
+        // Silkscreen micro-label (1, 2, 3, 4)
+        Text(
+            text = number,
+            style = MaterialTheme.typography.labelSmall,
+            fontFamily = FontFamily.Monospace,
+            fontWeight = FontWeight.Bold,
+            fontSize = 7.sp,
+            color = Color(0xFF6B7A8D)
         )
     }
 }
 
-// ─── Hero Content: Normal Waiting for Card Tap ───
+// ─── Center Zone: POS Contactless Landing Pad ───
 
 @Composable
-private fun WaitingTapContent() {
-    val configuration = LocalConfiguration.current
-    val screenWidth = configuration.screenWidthDp.dp
-    val baseSize = (screenWidth * 0.38f).coerceAtMost(160.dp)
-    val iconSize = baseSize * 0.5f
-
-    val infiniteTransition = rememberInfiniteTransition(label = "posWave")
-
-    val waveScale by infiniteTransition.animateFloat(
-        initialValue = 1f,
-        targetValue = 2.0f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1200, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "waveScale"
-    )
-
-    val waveAlpha by infiniteTransition.animateFloat(
-        initialValue = 0.7f,
-        targetValue = 0f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1200, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "waveAlpha"
-    )
-
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+fun PosContactlessLandingPad() {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 8.dp),
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(1.5.dp, MaterialTheme.colorScheme.outlineVariant),
+        shadowElevation = 4.dp
     ) {
-        Box(
+        Column(
             modifier = Modifier
-                .size(baseSize * 2.2f),
-            contentAlignment = Alignment.Center
+                .fillMaxWidth()
+                .padding(vertical = 24.dp, horizontal = 16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Expanding pulsating radar wave
+            // Card Placement Target Zone with Industrial Corner Marks
             Box(
                 modifier = Modifier
-                    .size(baseSize)
-                    .scale(waveScale)
-                    .alpha(waveAlpha)
-                    .border(
-                        width = 2.dp,
-                        color = MaterialTheme.colorScheme.primary,
-                        shape = CircleShape
-                    )
-            )
-
-            // Inner elevated circle
-            Surface(
-                modifier = Modifier.size(baseSize),
-                shape = CircleShape,
-                color = MaterialTheme.colorScheme.primaryContainer,
-                shadowElevation = 6.dp
+                    .size(width = 220.dp, height = 140.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f))
+                    .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(12.dp)),
+                contentAlignment = Alignment.Center
             ) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
+                // Corner Alignment Registration Brackets
+                Text(
+                    text = "┌",
+                    fontFamily = FontFamily.Monospace,
+                    fontSize = 20.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .padding(start = 8.dp, top = 2.dp)
+                )
+                Text(
+                    text = "┐",
+                    fontFamily = FontFamily.Monospace,
+                    fontSize = 20.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(end = 8.dp, top = 2.dp)
+                )
+                Text(
+                    text = "└",
+                    fontFamily = FontFamily.Monospace,
+                    fontSize = 20.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                    modifier = Modifier
+                        .align(Alignment.BottomStart)
+                        .padding(start = 8.dp, bottom = 2.dp)
+                )
+                Text(
+                    text = "┘",
+                    fontFamily = FontFamily.Monospace,
+                    fontSize = 20.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(end = 8.dp, bottom = 2.dp)
+                )
+
+                // Large EMV Contactless Symbol
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Icon(
                         painter = painterResource(id = R.drawable.tap_to_pay),
-                        contentDescription = "Contactless Tap",
-                        modifier = Modifier.size(iconSize),
-                        tint = MaterialTheme.colorScheme.onPrimaryContainer
+                        contentDescription = "Contactless Tap Zone",
+                        modifier = Modifier.size(64.dp),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                    Text(
+                        text = "TOUCH CARD HERE",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontFamily = FontFamily.Monospace,
+                        fontWeight = FontWeight.Black,
+                        letterSpacing = 1.sp,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+
+            // High-Contrast Terminal Guidance
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Text(
+                    text = "PRESENT CARD OR MOBILE WALLET",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontFamily = FontFamily.Monospace,
+                    fontWeight = FontWeight.Black,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    textAlign = TextAlign.Center
+                )
+                Text(
+                    text = "Hold card flat against reader until beep sounds",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center
+                )
+            }
+
+            // Hardware Status Pill
+            Surface(
+                shape = RoundedCornerShape(6.dp),
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(6.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFF00E676))
+                    )
+                    Text(
+                        text = "RF FIELD ACTIVE · 13.56 MHz · ISO/IEC 14443",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontFamily = FontFamily.Monospace,
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
         }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Text(
-            text = "PRESENT CARD OR DEVICE",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Black,
-            letterSpacing = 0.5.sp,
-            textAlign = TextAlign.Center,
-            color = MaterialTheme.colorScheme.onBackground
-        )
-
-        Spacer(modifier = Modifier.height(6.dp))
-
-        Text(
-            text = "Hold contactless card or mobile wallet near the reader",
-            style = MaterialTheme.typography.bodySmall,
-            textAlign = TextAlign.Center,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
     }
 }
 
-// ─── Hero Content: Reading in Progress ───
+// ─── Center Zone: Reading HUD with Live POS APDU Console ───
 
 @Composable
-private fun ReadingCardContent(currentApdu: String? = null) {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+fun ReadingCardPosHud(
+    currentApdu: String?,
+    liveLogs: List<String>
+) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 8.dp),
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(1.5.dp, MaterialTheme.colorScheme.outlineVariant),
+        shadowElevation = 4.dp
     ) {
-        CircularProgressIndicator(
-            modifier = Modifier.size(64.dp),
-            color = MaterialTheme.colorScheme.primary,
-            strokeWidth = 4.dp
-        )
-
-        Spacer(modifier = Modifier.height(20.dp))
-
-        Text(
-            text = "READING CARD...",
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.Black,
-            letterSpacing = 1.sp,
-            color = MaterialTheme.colorScheme.primary
-        )
-
-        Spacer(modifier = Modifier.height(6.dp))
-
-        Text(
-            text = "HOLD CARD STILL",
-            style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Live APDU status badge
-        Surface(
-            shape = RoundedCornerShape(20.dp),
-            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f),
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f))
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 18.dp, horizontal = 16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
+            // Header with pulsing read indicator
             Row(
-                modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                val infiniteTransition = rememberInfiniteTransition(label = "dotBlink")
-                val dotAlpha by infiniteTransition.animateFloat(
-                    initialValue = 1f,
-                    targetValue = 0.3f,
-                    animationSpec = infiniteRepeatable(
-                        animation = tween(200, easing = LinearEasing),
-                        repeatMode = RepeatMode.Reverse
-                    ),
-                    label = "dotAlpha"
-                )
-                Box(
-                    modifier = Modifier
-                        .size(8.dp)
-                        .clip(CircleShape)
-                        .alpha(dotAlpha)
-                        .background(Color(0xFFFFB300))
-                )
-                Spacer(modifier = Modifier.width(8.dp))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    val infiniteTransition = rememberInfiniteTransition(label = "pulseYellow")
+                    val pulseAlpha by infiniteTransition.animateFloat(
+                        initialValue = 1f,
+                        targetValue = 0.2f,
+                        animationSpec = infiniteRepeatable(
+                            animation = tween(150, easing = LinearEasing),
+                            repeatMode = RepeatMode.Reverse
+                        ),
+                        label = "pAlpha"
+                    )
+                    Box(
+                        modifier = Modifier
+                            .size(10.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFFFFB300).copy(alpha = pulseAlpha))
+                    )
+                    Text(
+                        text = "EMV L2 KERNEL ACTIVE",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontFamily = FontFamily.Monospace,
+                        fontWeight = FontWeight.Black,
+                        color = Color(0xFFFFB300),
+                        letterSpacing = 0.8.sp
+                    )
+                }
+
                 Text(
-                    text = currentApdu ?: "EXCHANGING APDU...",
+                    text = "PROCESSING",
                     style = MaterialTheme.typography.labelSmall,
                     fontFamily = FontFamily.Monospace,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            // Current Action Banner
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(8.dp),
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(16.dp),
+                        strokeWidth = 2.dp,
+                        color = Color(0xFFFFB300)
+                    )
+                    Text(
+                        text = currentApdu ?: "EXCHANGING APDU FRAMES...",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontFamily = FontFamily.Monospace,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1
+                    )
+                }
+            }
+
+            // POS APDU Terminal Console Box
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(8.dp),
+                color = Color(0xFF0C1014),
+                border = BorderStroke(1.2.dp, Color(0xFF263238))
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(10.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = "TERMINAL CONSOLE (NFC-A / ISO 14443-4)",
+                            fontFamily = FontFamily.Monospace,
+                            fontSize = 8.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF546E7A)
+                        )
+                        Text(
+                            text = "BAUD: 106 kbps",
+                            fontFamily = FontFamily.Monospace,
+                            fontSize = 8.sp,
+                            color = Color(0xFF546E7A)
+                        )
+                    }
+
+                    HorizontalDivider(color = Color(0xFF263238), thickness = 0.8.dp)
+
+                    // Stream last 4 log lines or fallback
+                    val displayLogs = if (liveLogs.isNotEmpty()) {
+                        liveLogs.takeLast(4)
+                    } else {
+                        listOf(
+                            ">> CARRIER DETECTED · ATS RECEIVED",
+                            ">> SELECT PPSE (2PAY.SYS.DDF01)...",
+                            ">> WAITING FOR ICC RESPONSE..."
+                        )
+                    }
+
+                    displayLogs.forEach { log ->
+                        Text(
+                            text = log,
+                            fontFamily = FontFamily.Monospace,
+                            fontSize = 10.sp,
+                            color = if (log.startsWith("<<")) Color(0xFF00E676) else Color(0xFF4FC3F7),
+                            fontWeight = FontWeight.Medium,
+                            maxLines = 1
+                        )
+                    }
+                }
+            }
+
+            // Warning Banner
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Warning,
+                    contentDescription = null,
+                    modifier = Modifier.size(14.dp),
+                    tint = Color(0xFFFFB300)
+                )
+                Text(
+                    text = "HOLD CARD STILL · DO NOT REMOVE",
+                    style = MaterialTheme.typography.labelSmall,
+                    fontFamily = FontFamily.Monospace,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFFFFB300)
                 )
             }
         }
@@ -515,61 +800,45 @@ private fun ReadingCardContent(currentApdu: String? = null) {
 // ─── Hero Content: SEE PHONE (Two Tap CDCVM Prompt) ───
 
 @Composable
-private fun SeePhoneRetryContent(instructions: String) {
-    val configuration = LocalConfiguration.current
-    val screenWidth = configuration.screenWidthDp.dp
-    val baseSize = (screenWidth * 0.36f).coerceAtMost(150.dp)
-
-    // Pulsating amber wave for second tap
-    val infiniteTransition = rememberInfiniteTransition(label = "amberWave")
-    val waveScale by infiniteTransition.animateFloat(
-        initialValue = 1f,
-        targetValue = 1.8f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1000, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "amberScale"
-    )
-    val waveAlpha by infiniteTransition.animateFloat(
-        initialValue = 0.8f,
-        targetValue = 0f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1000, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "amberAlpha"
-    )
-
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
-        modifier = Modifier.padding(horizontal = 8.dp)
+fun SeePhoneRetryContent(instructions: String) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 8.dp),
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(1.5.dp, Color(0xFFE65100).copy(alpha = 0.8f)),
+        shadowElevation = 4.dp
     ) {
-        Box(
-            modifier = Modifier.size(baseSize * 2.0f),
-            contentAlignment = Alignment.Center
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 20.dp, horizontal = 16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            // Expanding amber wave
-            Box(
-                modifier = Modifier
-                    .size(baseSize)
-                    .scale(waveScale)
-                    .alpha(waveAlpha)
-                    .border(
-                        width = 2.dp,
-                        color = Color(0xFFFFB300),
-                        shape = CircleShape
-                    )
-            )
-
-            // Center amber hero circle
+            // Amber Header Bar
             Surface(
-                modifier = Modifier.size(baseSize),
+                shape = RoundedCornerShape(6.dp),
+                color = Color(0xFFE65100)
+            ) {
+                Text(
+                    text = "CDCVM REQUIRED · PLEASE SEE PHONE",
+                    style = MaterialTheme.typography.labelSmall,
+                    fontFamily = FontFamily.Monospace,
+                    fontWeight = FontWeight.Black,
+                    color = Color.White,
+                    letterSpacing = 1.sp,
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                )
+            }
+
+            // Fingerprint / Phone Icon
+            Surface(
+                modifier = Modifier.size(80.dp),
                 shape = CircleShape,
                 color = Color(0xFFFFF3E0),
-                border = BorderStroke(2.dp, Color(0xFFE65100)),
-                shadowElevation = 6.dp
+                border = BorderStroke(2.dp, Color(0xFFE65100))
             ) {
                 Box(
                     modifier = Modifier.fillMaxSize(),
@@ -578,63 +847,58 @@ private fun SeePhoneRetryContent(instructions: String) {
                     Icon(
                         imageVector = Icons.Default.Fingerprint,
                         contentDescription = "See Phone",
-                        modifier = Modifier.size(baseSize * 0.55f),
+                        modifier = Modifier.size(46.dp),
                         tint = Color(0xFFE65100)
                     )
                 }
             }
-        }
 
-        Spacer(modifier = Modifier.height(14.dp))
-
-        // Big alert headline
-        Surface(
-            shape = RoundedCornerShape(8.dp),
-            color = Color(0xFFE65100)
-        ) {
-            Text(
-                text = "PLEASE SEE PHONE",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Black,
-                color = Color.White,
-                letterSpacing = 1.sp,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
-            )
-        }
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        Text(
-            text = "Authenticate on phone screen with Face ID / Fingerprint / Passcode",
-            style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.SemiBold,
-            textAlign = TextAlign.Center,
-            color = MaterialTheme.colorScheme.onBackground
-        )
-
-        Spacer(modifier = Modifier.height(6.dp))
-
-        Surface(
-            shape = RoundedCornerShape(20.dp),
-            color = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.5f)
-        ) {
-            Row(
-                modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            // Action Instructions
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                Icon(
-                    imageVector = Icons.Default.Contactless,
-                    contentDescription = null,
-                    modifier = Modifier.size(16.dp),
-                    tint = MaterialTheme.colorScheme.onTertiaryContainer
+                Text(
+                    text = "AUTHENTICATE ON PHONE SCREEN",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontFamily = FontFamily.Monospace,
+                    fontWeight = FontWeight.Black,
+                    textAlign = TextAlign.Center,
+                    color = MaterialTheme.colorScheme.onSurface
                 )
                 Text(
-                    text = "Reader is waiting for second tap...",
-                    style = MaterialTheme.typography.labelSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onTertiaryContainer
+                    text = "Unlock with Face ID, Fingerprint, or Device PIN, then tap the reader again.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center
                 )
+            }
+
+            // Reader Standby Indicator
+            Surface(
+                shape = RoundedCornerShape(6.dp),
+                color = Color(0xFF1E232A),
+                border = BorderStroke(1.dp, Color(0xFF384352))
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Contactless,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp),
+                        tint = Color(0xFFFFB300)
+                    )
+                    Text(
+                        text = "READER WAITING FOR 2ND TAP...",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontFamily = FontFamily.Monospace,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFFFFB300)
+                    )
+                }
             }
         }
     }

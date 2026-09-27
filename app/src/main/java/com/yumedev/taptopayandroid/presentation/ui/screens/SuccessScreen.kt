@@ -238,10 +238,13 @@ fun SuccessScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     // Contactless 4-LED Animated Indicator
-                    PosAnimatedLedIndicator(isDeclined = analysis.isDeclined)
+                    PosAnimatedLedIndicator(
+                        isDeclined = analysis.isDeclined,
+                        ledColorMode = config.ledColorMode
+                    )
 
                     Text(
-                        text = "EMV CONTACTLESS POS",
+                        text = if (config.ledColorMode == PosLedColorMode.EMV_GREEN) "EMV 4-GREEN POS" else "UPAY 4-COLOR POS",
                         style = MaterialTheme.typography.labelSmall,
                         fontFamily = FontFamily.Monospace,
                         fontWeight = FontWeight.Bold,
@@ -604,16 +607,19 @@ fun SuccessScreen(
     }
 }
 
-// ─── Contactless 4-LED Indicator: Blue, Yellow, Green, Red ───
+// ─── Contactless 4-LED Indicator: EMV Green & UnionPay 4-Color ───
 
 @Composable
-private fun PosAnimatedLedIndicator(isDeclined: Boolean) {
-    val blueColor = Color(0xFF2979FF)     // LED 1: Blue
-    val yellowColor = Color(0xFFFFB300)   // LED 2: Yellow
-    val greenColor = Color(0xFF00E676)    // LED 3: Green
-    val redColor = Color(0xFFE53935)      // LED 4: Red
+private fun PosAnimatedLedIndicator(
+    isDeclined: Boolean,
+    ledColorMode: PosLedColorMode = PosLedColorMode.EMV_GREEN
+) {
+    val greenColor = Color(0xFF00E676)
+    val blueColor = Color(0xFF2979FF)
+    val yellowColor = Color(0xFFFFB300)
+    val redColor = Color(0xFFE53935)
 
-    val inactiveAlpha = 0.2f
+    val inactiveAlpha = 0.15f
 
     // 4 sequential LED animations
     val led1Alpha = remember { Animatable(inactiveAlpha) }
@@ -621,69 +627,84 @@ private fun PosAnimatedLedIndicator(isDeclined: Boolean) {
     val led3Alpha = remember { Animatable(inactiveAlpha) }
     val led4Alpha = remember { Animatable(inactiveAlpha) }
 
-    LaunchedEffect(isDeclined) {
+    LaunchedEffect(isDeclined, ledColorMode) {
         delay(40)
         if (isDeclined) {
-            // On Decline: LED 1 (Blue) and LED 4 (Red) active
             led1Alpha.animateTo(1f, tween(60))
             led4Alpha.animateTo(1f, tween(120))
         } else {
-            // On Success: Sweep across Blue (Ready) -> Yellow (Read) -> Green (Approved)
-            // Standard contactless payment approved sequence!
-            led1Alpha.animateTo(1f, tween(70))
-            delay(40)
-            led2Alpha.animateTo(1f, tween(70))
-            delay(40)
-            led3Alpha.animateTo(1f, tween(90))
+            if (ledColorMode == PosLedColorMode.EMV_GREEN) {
+                // EMV Level 1 Standard: All 4 Green LEDs illuminate sequentially to solid green on success!
+                led1Alpha.animateTo(1f, tween(60))
+                delay(30)
+                led2Alpha.animateTo(1f, tween(60))
+                delay(30)
+                led3Alpha.animateTo(1f, tween(60))
+                delay(30)
+                led4Alpha.animateTo(1f, tween(60))
+            } else {
+                // UnionPay 4-Color Standard: Blue (Ready) -> Yellow (Read) -> Green (Approved)
+                led1Alpha.animateTo(1f, tween(70))
+                delay(40)
+                led2Alpha.animateTo(1f, tween(70))
+                delay(40)
+                led3Alpha.animateTo(1f, tween(90))
+            }
         }
     }
+
+    // Determine colors for each lens
+    val c1 = if (ledColorMode == PosLedColorMode.EMV_GREEN) greenColor else blueColor
+    val c2 = if (ledColorMode == PosLedColorMode.EMV_GREEN) greenColor else yellowColor
+    val c3 = greenColor
+    val c4 = if (isDeclined) redColor else if (ledColorMode == PosLedColorMode.EMV_GREEN) greenColor else redColor
 
     Row(
         horizontalArrangement = Arrangement.spacedBy(6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // LED 1: Blue
+        // LED 1
         Box(
             modifier = Modifier
                 .size(10.dp)
                 .clip(CircleShape)
-                .background(blueColor.copy(alpha = led1Alpha.value))
+                .background(c1.copy(alpha = led1Alpha.value))
                 .graphicsLayer {
                     scaleX = if (led1Alpha.value > 0.5f) 1f else 0.85f
                     scaleY = if (led1Alpha.value > 0.5f) 1f else 0.85f
                 }
         )
 
-        // LED 2: Yellow
+        // LED 2
         Box(
             modifier = Modifier
                 .size(10.dp)
                 .clip(CircleShape)
-                .background(yellowColor.copy(alpha = led2Alpha.value))
+                .background(c2.copy(alpha = led2Alpha.value))
                 .graphicsLayer {
                     scaleX = if (led2Alpha.value > 0.5f) 1f else 0.85f
                     scaleY = if (led2Alpha.value > 0.5f) 1f else 0.85f
                 }
         )
 
-        // LED 3: Green
+        // LED 3
         Box(
             modifier = Modifier
                 .size(10.dp)
                 .clip(CircleShape)
-                .background(greenColor.copy(alpha = led3Alpha.value))
+                .background(c3.copy(alpha = led3Alpha.value))
                 .graphicsLayer {
                     scaleX = if (led3Alpha.value > 0.5f) 1f else 0.85f
                     scaleY = if (led3Alpha.value > 0.5f) 1f else 0.85f
                 }
         )
 
-        // LED 4: Red
+        // LED 4
         Box(
             modifier = Modifier
                 .size(10.dp)
                 .clip(CircleShape)
-                .background(redColor.copy(alpha = led4Alpha.value))
+                .background(c4.copy(alpha = led4Alpha.value))
                 .graphicsLayer {
                     scaleX = if (led4Alpha.value > 0.5f) 1f else 0.85f
                     scaleY = if (led4Alpha.value > 0.5f) 1f else 0.85f

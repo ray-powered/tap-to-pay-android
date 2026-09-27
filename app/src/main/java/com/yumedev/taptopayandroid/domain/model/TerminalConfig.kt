@@ -1,5 +1,10 @@
 package com.yumedev.taptopayandroid.domain.model
 
+enum class PosLedColorMode {
+    EMV_GREEN,     // Standard EMV 4-Green LEDs (LED 1 Solid, LED 2 Blinks on APDU, All 4 Solid on Success)
+    UNIONPAY_COLOR // Standard 4-Color LEDs (Blue, Yellow, Green, Red)
+}
+
 /**
  * Configuration for POS Terminal and EMV transaction attributes.
  * Allows customizing currency, country, transaction type, TTQ, terminal capabilities,
@@ -40,7 +45,10 @@ data class TerminalConfig(
     val merchantCategoryCode: String = "5411", // 5411 = Grocery Stores
 
     // Additional Terminal Capabilities (Tag 9F40 - 5 bytes hex)
-    val additionalTerminalCapabilitiesHex: String = "6000F0A001"
+    val additionalTerminalCapabilitiesHex: String = "6000F0A001",
+
+    // Contactless 4-LED Color Scheme (EMV Classic 4-Green vs. UnionPay 4-Color)
+    val ledColorMode: PosLedColorMode = PosLedColorMode.EMV_GREEN
 ) {
 
     // --- TTQ Bitwise Accessors ---

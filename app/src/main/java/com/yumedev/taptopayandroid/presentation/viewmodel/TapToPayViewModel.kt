@@ -55,6 +55,9 @@ class TapToPayViewModel @Inject constructor(
     private val _apduPulseCount = MutableStateFlow(0)
     val apduPulseCount: StateFlow<Int> = _apduPulseCount.asStateFlow()
 
+    private val _liveApduLogs = MutableStateFlow<List<String>>(emptyList())
+    val liveApduLogs: StateFlow<List<String>> = _liveApduLogs.asStateFlow()
+
     init {
         viewModelScope.launch {
             nfcEventRepository.nfcTagFlow.collect { tag ->
@@ -65,8 +68,19 @@ class TapToPayViewModel @Inject constructor(
             NfcCardReader.apduEventFlow.collect { apduName ->
                 _currentApduCommand.value = apduName
                 _apduPulseCount.value += 1
+                _liveApduLogs.value = (_liveApduLogs.value + apduName).takeLast(6)
             }
         }
+    }
+
+    fun toggleLedColorMode() {
+        val currentMode = _terminalConfig.value.ledColorMode
+        val nextMode = if (currentMode == com.yumedev.taptopayandroid.domain.model.PosLedColorMode.EMV_GREEN) {
+            com.yumedev.taptopayandroid.domain.model.PosLedColorMode.UNIONPAY_COLOR
+        } else {
+            com.yumedev.taptopayandroid.domain.model.PosLedColorMode.EMV_GREEN
+        }
+        _terminalConfig.value = _terminalConfig.value.copy(ledColorMode = nextMode)
     }
 
     private fun parseAmountToCents(amount: String): Long {
@@ -82,11 +96,19 @@ class TapToPayViewModel @Inject constructor(
         viewModelScope.launch {
             _currentApduCommand.value = null
             _apduPulseCount.value = 0
+            _liveApduLogs.value = emptyList()
             _nfcState.value = NfcState.Reading
+            val startTime = System.currentTimeMillis()
             val amountCents = parseAmountToCents(_lastAmount.value)
             val currentConfig = getTerminalConfigUseCase?.invoke() ?: _terminalConfig.value
             _terminalConfig.value = currentConfig
             val result = readCardUseCase(tag, amountCents, currentConfig)
+
+            // Hold reading state for at least 600ms so user can see LED 2 blinking & live APDU stream
+            val elapsed = System.currentTimeMillis() - startTime
+            if (elapsed < 600) {
+                kotlinx.coroutines.delay(600 - elapsed)
+            }
 
             _currentApduCommand.value = null
             _nfcState.value = result.fold(
@@ -128,12 +150,14 @@ class TapToPayViewModel @Inject constructor(
         _nfcState.value = NfcState.Waiting
         _currentApduCommand.value = null
         _apduPulseCount.value = 0
+        _liveApduLogs.value = emptyList()
     }
 
     fun startNewTransaction(amount: String) {
         _nfcState.value = NfcState.Waiting
         _currentApduCommand.value = null
         _apduPulseCount.value = 0
+        _liveApduLogs.value = emptyList()
         _lastAmount.value = amount
         getTerminalConfigUseCase?.invoke()?.let {
             _terminalConfig.value = it

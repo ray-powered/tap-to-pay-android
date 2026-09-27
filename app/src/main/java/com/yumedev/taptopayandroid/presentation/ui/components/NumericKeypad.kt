@@ -1,30 +1,45 @@
 package com.yumedev.taptopayandroid.presentation.ui.components
 
 import android.view.SoundEffectConstants
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.yumedev.taptopayandroid.R
+
+private val KEYPAD_SUBTITLES = mapOf(
+    "1" to "",
+    "2" to "ABC",
+    "3" to "DEF",
+    "4" to "GHI",
+    "5" to "JKL",
+    "6" to "MNO",
+    "7" to "PQRS",
+    "8" to "TUV",
+    "9" to "WXYZ",
+    "C" to "CLEAR",
+    "0" to "+",
+    "⌫" to "BACK"
+)
 
 @Composable
 fun Keypad(
@@ -42,15 +57,18 @@ fun Keypad(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp)
-            .border(0.5.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(16.dp))
-            .clip(RoundedCornerShape(16.dp))
+            .padding(horizontal = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         keys.chunked(3).forEach { row ->
-            Row(Modifier.fillMaxWidth()) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
                 row.forEach { key ->
-                    SquareKey(
+                    PosHardwareKey(
                         label = key,
+                        subLabel = KEYPAD_SUBTITLES[key] ?: "",
                         modifier = Modifier.weight(1f),
                         onClick = {
                             when (key) {
@@ -67,41 +85,74 @@ fun Keypad(
 }
 
 @Composable
-fun SquareKey(
+fun PosHardwareKey(
     label: String,
+    subLabel: String,
     modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
     val view = LocalView.current
-    val interactionSource = remember { MutableInteractionSource() }
+    val isClear = label == "C"
+    val isDelete = label == "⌫"
 
-    Box(
+    // POS keycap colors
+    val keyBg = when {
+        isClear -> MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.35f)
+        isDelete -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
+        else -> MaterialTheme.colorScheme.surface
+    }
+
+    val keyBorderColor = when {
+        isClear -> MaterialTheme.colorScheme.error.copy(alpha = 0.4f)
+        else -> MaterialTheme.colorScheme.outlineVariant
+    }
+
+    Surface(
         modifier = modifier
-            .height(56.dp)
-            .border(
-                0.5.dp,
-                MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
-            )
+            .height(58.dp)
+            .clip(RoundedCornerShape(10.dp))
             .clickable {
                 view.playSoundEffect(SoundEffectConstants.CLICK)
                 onClick()
             },
-        contentAlignment = Alignment.Center
+        shape = RoundedCornerShape(10.dp),
+        color = keyBg,
+        border = BorderStroke(1.dp, keyBorderColor),
+        shadowElevation = 1.dp
     ) {
-        if (label == "⌫") {
-            Icon(
-                painter = painterResource(R.drawable.delete),
-                contentDescription = "Delete",
-                modifier = Modifier.size(22.dp),
-                tint = MaterialTheme.colorScheme.primary
-            )
-        } else {
-            Text(
-                text = label,
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface
-            )
+        Column(
+            modifier = Modifier.fillMaxSize(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            if (isDelete) {
+                Icon(
+                    painter = painterResource(R.drawable.delete),
+                    contentDescription = "Delete",
+                    modifier = Modifier.size(20.dp),
+                    tint = MaterialTheme.colorScheme.onSurface
+                )
+            } else {
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = FontFamily.Monospace,
+                    color = if (isClear) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
+                    lineHeight = 24.sp
+                )
+            }
+
+            if (subLabel.isNotEmpty()) {
+                Text(
+                    text = subLabel,
+                    style = MaterialTheme.typography.labelSmall,
+                    fontSize = 8.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 0.5.sp,
+                    color = if (isClear) MaterialTheme.colorScheme.error.copy(alpha = 0.8f) else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                )
+            }
         }
     }
 }
