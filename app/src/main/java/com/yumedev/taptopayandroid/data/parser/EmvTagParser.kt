@@ -195,6 +195,21 @@ class EmvTagParser @Inject constructor(
     fun extractAllTags(data: ByteArray): Map<String, EmvTag> {
         val tags = mutableMapOf<String, EmvTag>()
         extractTagsRecursive(data, tags)
+
+        // If 9F26 (Application Cryptogram) is missing, check if a Format 1 (Tag 80) GENERATE AC template exists
+        if (!tags.containsKey("9F26")) {
+            val tag80Hex = tags["80"]?.value
+            val tag80 = tag80Hex?.hexToByteArray()
+            if (tag80 != null && tag80.size >= 11) {
+                if (!tags.containsKey("9F27")) tags["9F27"] = parseTag("9F27", tag80.copyOfRange(0, 1))
+                if (!tags.containsKey("9F36")) tags["9F36"] = parseTag("9F36", tag80.copyOfRange(1, 3))
+                tags["9F26"] = parseTag("9F26", tag80.copyOfRange(3, 11))
+                if (tag80.size > 11 && !tags.containsKey("9F10")) {
+                    tags["9F10"] = parseTag("9F10", tag80.copyOfRange(11, tag80.size))
+                }
+            }
+        }
+
         return tags
     }
 

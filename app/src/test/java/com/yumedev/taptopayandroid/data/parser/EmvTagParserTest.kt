@@ -304,4 +304,29 @@ class EmvTagParserTest {
         )
         assertThat(emvCardData81.cardType).isEqualTo(CardType.UNIONPAY)
     }
+
+    @Test
+    fun `extractAllTags unpacks Tag 80 Format 1 GENERATE AC response into individual cryptogram tags`() {
+        // Tag 80 with 16 bytes: CID (1B), ATC (2B), AC (8B), IAD (5B)
+        // CID = 0x80 (ARQC), ATC = 0x00 0x1A, AC = 11 22 33 44 55 66 77 88, IAD = 01 02 03 04 05
+        val tag80Data = byteArrayOf(
+            0x80.toByte(), 0x10.toByte(),
+            0x80.toByte(),
+            0x00.toByte(), 0x1A.toByte(),
+            0x11.toByte(), 0x22.toByte(), 0x33.toByte(), 0x44.toByte(), 0x55.toByte(), 0x66.toByte(), 0x77.toByte(), 0x88.toByte(),
+            0x01.toByte(), 0x02.toByte(), 0x03.toByte(), 0x04.toByte(), 0x05.toByte()
+        )
+
+        val tags = parser.extractAllTags(tag80Data)
+
+        assertThat(tags.containsKey("80")).isTrue()
+        assertThat(tags.containsKey("9F27")).isTrue()
+        assertThat(tags["9F27"]?.value).isEqualTo("80")
+        assertThat(tags.containsKey("9F36")).isTrue()
+        assertThat(tags["9F36"]?.value).isEqualTo("001A")
+        assertThat(tags.containsKey("9F26")).isTrue()
+        assertThat(tags["9F26"]?.value).isEqualTo("1122334455667788")
+        assertThat(tags.containsKey("9F10")).isTrue()
+        assertThat(tags["9F10"]?.value).isEqualTo("0102030405")
+    }
 }

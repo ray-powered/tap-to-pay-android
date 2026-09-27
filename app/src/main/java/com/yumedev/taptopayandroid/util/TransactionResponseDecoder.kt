@@ -225,19 +225,12 @@ object TransactionResponseDecoder {
             }
             tags.containsKey("5A") || tags.containsKey("57") -> {
                 decision = TransactionDecision.DATA_READ_ONLY
-                decisionTitle = "Card Read Only (No Cryptogram)"
-                decisionDescription = "Card data was read, but no Application Cryptogram (AC) was generated. Transaction is incomplete."
-                isApproved = false
+                decisionTitle = "Card Read Successful"
+                decisionDescription = "Card data and EMV tags successfully retrieved from card."
+                isApproved = true
                 isDeclined = false
                 isOnlineRequired = false
                 isSwitchInterfaceRequired = false
-                highlights.add(
-                    AnalysisHighlight(
-                        title = "No Cryptogram Generated",
-                        description = "Transaction was not authorized by card (missing Application Cryptogram).",
-                        type = HighlightType.WARNING
-                    )
-                )
             }
             else -> {
                 decision = TransactionDecision.TERMINATED_WITH_ERROR

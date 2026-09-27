@@ -383,8 +383,17 @@ class NfcCardReader @Inject constructor(
                                 ))
 
                                 if (isSuccessResponse(genAcResponse)) {
-                                    allRecords.add(removeStatusWord(genAcResponse))
+                                    val cleanGenAc = removeStatusWord(genAcResponse)
+                                    allRecords.add(cleanGenAc)
                                     SecureLogger.dSecure(TAG, "GENERATE AC Response: ${genAcResponse.toHexString()}")
+
+                                    // Unpack Format 1 (Tag 80) or raw response into standard TLV tags:
+                                    // 9F27 (CID), 9F36 (ATC), 9F26 (AC), 9F10 (IAD)
+                                    val unpackedGenAcTlv = unpackGenAcResponse(cleanGenAc)
+                                    if (unpackedGenAcTlv != null) {
+                                        allRecords.add(unpackedGenAcTlv)
+                                        SecureLogger.d(TAG) { "Synthesized GENERATE AC TLV tags: ${unpackedGenAcTlv.toHexString()}" }
+                                    }
                                 } else {
                                     SecureLogger.d(TAG) { "GENERATE AC status: ${getStatusWord(genAcResponse)}" }
                                 }
@@ -753,6 +762,53 @@ class NfcCardReader @Inject constructor(
         } else {
             response
         }
+    }
+
+    private fun unpackGenAcResponse(data: ByteArray): ByteArray? {
+        if (data.isEmpty()) return null
+
+        val payload: ByteArray = when {
+            // Format 1 with Tag 80: 80 <Len> <CID (1B)> <ATC (2B)> <AC (8B)> [<IAD>]
+            data[0] == 0x80.toByte() && data.size >= 13 -> {
+                val lenByte = data[1].toInt() and 0xFF
+                val (offset, len) = if (lenByte and 0x80 != 0) {
+                    val numLenBytes = lenByte and 0x7F
+                    if (2 + numLenBytes > data.size) return null
+                    var actualLen = 0
+                    for (i in 0 until numLenBytes) {
+                        actualLen = (actualLen shl 8) or (data[2 + i].toInt() and 0xFF)
+                    }
+                    Pair(2 + numLenBytes, actualLen)
+                } else {
+                    Pair(2, lenByte)
+                }
+                val end = (offset + len).coerceAtMost(data.size)
+                if (end - offset < 11) return null
+                data.copyOfRange(offset, end)
+            }
+            // Format 2 (Tag 77) is already a constructed TLV template
+            data[0] == 0x77.toByte() -> return null
+            // Raw response without Tag 80 header
+            data.size >= 11 -> data
+            else -> return null
+        }
+
+        if (payload.size < 11) return null
+
+        val cid = payload[0]
+        val atc = payload.copyOfRange(1, 3)
+        val ac = payload.copyOfRange(3, 11)
+        val iad = if (payload.size > 11) payload.copyOfRange(11, payload.size) else byteArrayOf()
+
+        val cidTlv = byteArrayOf(0x9F.toByte(), 0x27.toByte(), 0x01.toByte(), cid)
+        val atcTlv = byteArrayOf(0x9F.toByte(), 0x36.toByte(), 0x02.toByte(), atc[0], atc[1])
+        val acTlv = byteArrayOf(0x9F.toByte(), 0x26.toByte(), 0x08.toByte()) + ac
+        val iadTlv = if (iad.isNotEmpty() && iad.size <= 127) {
+            byteArrayOf(0x9F.toByte(), 0x10.toByte(), iad.size.toByte()) + iad
+        } else byteArrayOf()
+
+        val totalLen = cidTlv.size + atcTlv.size + acTlv.size + iadTlv.size
+        return byteArrayOf(0x77.toByte(), totalLen.toByte()) + cidTlv + atcTlv + acTlv + iadTlv
     }
 
     private fun ByteArray.toHexString(): String {
