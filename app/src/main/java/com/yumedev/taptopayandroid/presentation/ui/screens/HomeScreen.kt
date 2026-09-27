@@ -247,10 +247,10 @@ fun HomeScreen(
 
                 Spacer(modifier = Modifier.height(6.dp))
 
-                val amountFontSize = when {
-                    displayAmount.length <= 6 -> 52.sp
-                    displayAmount.length <= 9 -> 40.sp
-                    else -> 32.sp
+                val (amountFontSize, currencySymbolFontSize) = when {
+                    displayAmount.length <= 6 -> Pair(52.sp, 36.sp)
+                    displayAmount.length <= 9 -> Pair(40.sp, 28.sp)
+                    else -> Pair(32.sp, 22.sp)
                 }
 
                 Row(
@@ -262,7 +262,7 @@ fun HomeScreen(
                         style = MaterialTheme.typography.displayMedium,
                         fontFamily = FontFamily.Monospace,
                         fontWeight = FontWeight.Medium,
-                        fontSize = amountFontSize * 0.7f,
+                        fontSize = currencySymbolFontSize,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Spacer(modifier = Modifier.width(6.dp))
