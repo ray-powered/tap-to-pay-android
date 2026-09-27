@@ -177,7 +177,7 @@ object TransactionResponseDecoder {
             cid?.cryptogramType == CryptogramType.TC -> {
                 decision = TransactionDecision.APPROVED_OFFLINE
                 decisionTitle = "Approved Offline (TC)"
-                decisionDescription = "Card issued a Transaction Certificate (TC). Transaction is authorized offline without needing a host connection."
+                decisionDescription = "Card issued a Transaction Certificate (TC). Transaction is authorized offline by the card chip without needing a host connection."
                 isApproved = true
                 isDeclined = false
                 isOnlineRequired = false
@@ -185,15 +185,15 @@ object TransactionResponseDecoder {
                 highlights.add(
                     AnalysisHighlight(
                         title = "Offline Approved (TC)",
-                        description = "Cryptogram TC (${cid.rawValue}) returned by card.",
+                        description = "Cryptogram TC (${cid.rawValue}) returned by card. Offline transaction authorized.",
                         type = HighlightType.SUCCESS
                     )
                 )
             }
             cid?.cryptogramType == CryptogramType.ARQC -> {
                 decision = TransactionDecision.ONLINE_AUTHORIZATION_REQUIRED
-                decisionTitle = "Approved (Online ARQC)"
-                decisionDescription = "Card generated an Authorisation Request Cryptogram (ARQC). Transaction successfully captured and authorized online."
+                decisionTitle = "Approved Online (ARQC)"
+                decisionDescription = "Card generated an Authorisation Request Cryptogram (ARQC). Transaction was routed online and approved by the issuer host."
                 isApproved = true
                 isDeclined = false
                 isOnlineRequired = false
@@ -201,7 +201,7 @@ object TransactionResponseDecoder {
                 highlights.add(
                     AnalysisHighlight(
                         title = "Online Approved (ARQC)",
-                        description = "Cryptogram ARQC (${cid.rawValue}) generated and authorized.",
+                        description = "Cryptogram ARQC (${cid.rawValue}) generated and authorized online by host.",
                         type = HighlightType.SUCCESS
                     )
                 )

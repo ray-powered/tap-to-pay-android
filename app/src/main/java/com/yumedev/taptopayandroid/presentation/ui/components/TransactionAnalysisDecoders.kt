@@ -14,9 +14,11 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.yumedev.taptopayandroid.domain.model.*
 
 // ─── Transaction Overview & Analysis Card ───
@@ -27,8 +29,8 @@ fun TransactionOverviewCard(
     modifier: Modifier = Modifier
 ) {
     val borderColor = when (analysis.decision) {
-        TransactionDecision.APPROVED_OFFLINE,
-        TransactionDecision.ONLINE_AUTHORIZATION_REQUIRED -> MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
+        TransactionDecision.APPROVED_OFFLINE -> Color(0xFF2E7D32).copy(alpha = 0.6f)
+        TransactionDecision.ONLINE_AUTHORIZATION_REQUIRED -> Color(0xFF1565C0).copy(alpha = 0.6f)
         TransactionDecision.DECLINED_BY_CARD -> MaterialTheme.colorScheme.error.copy(alpha = 0.5f)
         TransactionDecision.SEE_PHONE_CDCVM -> MaterialTheme.colorScheme.tertiary.copy(alpha = 0.5f)
         TransactionDecision.SWITCH_INTERFACE_CONTACT -> MaterialTheme.colorScheme.error.copy(alpha = 0.5f)
@@ -62,8 +64,8 @@ fun TransactionOverviewCard(
                 }
 
                 val iconTint = when (analysis.decision) {
-                    TransactionDecision.APPROVED_OFFLINE,
-                    TransactionDecision.ONLINE_AUTHORIZATION_REQUIRED -> MaterialTheme.colorScheme.primary
+                    TransactionDecision.APPROVED_OFFLINE -> Color(0xFF2E7D32)
+                    TransactionDecision.ONLINE_AUTHORIZATION_REQUIRED -> Color(0xFF1565C0)
                     TransactionDecision.DECLINED_BY_CARD -> MaterialTheme.colorScheme.error
                     TransactionDecision.SEE_PHONE_CDCVM -> MaterialTheme.colorScheme.tertiary
                     TransactionDecision.SWITCH_INTERFACE_CONTACT -> MaterialTheme.colorScheme.error
@@ -86,11 +88,45 @@ fun TransactionOverviewCard(
                 }
 
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "Transaction Decision",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Text(
+                            text = "Transaction Decision",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        if (analysis.decision == TransactionDecision.APPROVED_OFFLINE) {
+                            Surface(
+                                shape = RoundedCornerShape(4.dp),
+                                color = Color(0xFF2E7D32).copy(alpha = 0.15f)
+                            ) {
+                                Text(
+                                    text = "OFFLINE TC",
+                                    fontFamily = FontFamily.Monospace,
+                                    fontSize = 9.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF2E7D32),
+                                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
+                                )
+                            }
+                        } else if (analysis.decision == TransactionDecision.ONLINE_AUTHORIZATION_REQUIRED) {
+                            Surface(
+                                shape = RoundedCornerShape(4.dp),
+                                color = Color(0xFF1565C0).copy(alpha = 0.15f)
+                            ) {
+                                Text(
+                                    text = "ONLINE ARQC",
+                                    fontFamily = FontFamily.Monospace,
+                                    fontSize = 9.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF1565C0),
+                                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
+                                )
+                            }
+                        }
+                    }
                     Text(
                         text = analysis.decisionTitle,
                         style = MaterialTheme.typography.titleMedium,
