@@ -6,18 +6,10 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.nfc.NfcAdapter
 import androidx.core.content.ContextCompat
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.text.font.FontFamily
+import com.yumedev.taptopayandroid.domain.model.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Error
@@ -175,7 +167,7 @@ fun HomeScreen(
                         Text(
                             text = "SALE AMOUNT",
                             style = MaterialTheme.typography.labelSmall,
-                            fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                            fontFamily = FontFamily.Monospace,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             letterSpacing = 1.sp
@@ -183,7 +175,7 @@ fun HomeScreen(
                         Text(
                             text = "TID: ${terminalConfig.ifdSerialNumber}",
                             style = MaterialTheme.typography.labelSmall,
-                            fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                            fontFamily = FontFamily.Monospace,
                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                         )
                     }
@@ -199,7 +191,7 @@ fun HomeScreen(
                     Text(
                         text = "${terminalConfig.currencySymbol}$displayAmount",
                         style = MaterialTheme.typography.displayLarge,
-                        fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                        fontFamily = FontFamily.Monospace,
                         fontWeight = FontWeight.Black,
                         fontSize = amountFontSize,
                         maxLines = 1,
@@ -225,7 +217,7 @@ fun HomeScreen(
                             Text(
                                 text = "${terminalConfig.currencyCode}  ·  ${terminalConfig.transactionTypeDisplayName}  ·  TTQ: ${terminalConfig.formattedTtq}",
                                 style = MaterialTheme.typography.labelSmall,
-                                fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                                fontFamily = FontFamily.Monospace,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 fontWeight = FontWeight.Bold,
                                 maxLines = 1,
