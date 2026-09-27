@@ -28,7 +28,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.yumedev.taptopayandroid.R
 import com.yumedev.taptopayandroid.domain.model.EmvCardData
 import com.yumedev.taptopayandroid.domain.model.NfcState
@@ -43,7 +43,7 @@ fun TapToPayScreen(
     onSuccess: (EmvCardData) -> Unit,
     onError: (String) -> Unit,
     innerPadding: PaddingValues,
-    viewModel: TapToPayViewModel = viewModel()
+    viewModel: TapToPayViewModel = hiltViewModel()
 ) {
     val nfcState by viewModel.nfcState.collectAsState()
     val terminalConfig by viewModel.terminalConfig.collectAsState()
