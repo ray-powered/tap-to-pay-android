@@ -365,7 +365,12 @@ class NfcCardReader @Inject constructor(
                                 ) + cdolData + byteArrayOf(0x00.toByte())
 
                                 notifyApdu("GENERATE AC")
-                                val genAcResponse = isoDep.transceive(genAcCommand)
+                                val genAcResponse = try {
+                                    isoDep.transceive(genAcCommand)
+                                } catch (e: IOException) {
+                                    Log.e(TAG, "Card removed or RF connection lost during GENERATE AC", e)
+                                    throw IOException("Card removed before completing transaction (GENERATE AC aborted)", e)
+                                }
 
                                 apduCommands.add(ApduCommand(
                                     sequence = commandSequence++,
@@ -387,6 +392,9 @@ class NfcCardReader @Inject constructor(
                         }
                     }
                 }
+            } catch (e: IOException) {
+                // Re-throw IOException so card removal / lost connection fails the transaction
+                throw e
             } catch (t: Throwable) {
                 SecureLogger.d(TAG) { "GENERATE AC step skipped or unsupported: ${t.message}" }
             }
@@ -486,7 +494,7 @@ class NfcCardReader @Inject constructor(
 
             val value = when (item.tag) {
                 // 9F66: Terminal Transaction Qualifiers (TTQ - 4 bytes)
-                "9F66" -> parseHexBytes(terminalConfig.ttqHex, safeLength, byteArrayOf(0x36.toByte(), 0x20.toByte(), 0x40.toByte(), 0x00.toByte()))
+                "9F66" -> parseHexBytes(terminalConfig.ttqHex, safeLength, byteArrayOf(0x76.toByte(), 0x20.toByte(), 0x40.toByte(), 0x00.toByte()))
 
                 // 9F02: Amount, Authorised (Numeric - 6 bytes BCD)
                 "9F02" -> formatBcdAmount(amountCents ?: 0L, safeLength)

@@ -84,7 +84,9 @@ class PreferencesManager @Inject constructor(
             currencyExponent = sharedPreferences.getInt(KEY_CURRENCY_EXPONENT, 2),
             countryCode = sharedPreferences.getString(KEY_COUNTRY_CODE, "0840") ?: "0840",
             transactionType = sharedPreferences.getString(KEY_TRANSACTION_TYPE, "00") ?: "00",
-            ttqHex = sharedPreferences.getString(KEY_TERMINAL_TTQ, "36204000") ?: "36204000",
+            ttqHex = (sharedPreferences.getString(KEY_TERMINAL_TTQ, "76204000") ?: "76204000").let {
+                if (it.equals("36204000", ignoreCase = true)) "76204000" else it
+            },
             terminalCapabilitiesHex = sharedPreferences.getString(KEY_TERMINAL_CAPABILITIES, "E0F8C8") ?: "E0F8C8",
             terminalTypeHex = sharedPreferences.getString(KEY_TERMINAL_TYPE, "22") ?: "22",
             merchantName = sharedPreferences.getString(KEY_MERCHANT_NAME, "TAP TO PAY SHOP") ?: "TAP TO PAY SHOP",

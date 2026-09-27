@@ -190,7 +190,8 @@ object TransactionResponseDecoder {
                     )
                 )
             }
-            cid?.cryptogramType == CryptogramType.ARQC -> {
+            cid?.cryptogramType == CryptogramType.ARQC || (cid == null && tags.containsKey("9F26")) -> {
+                val cryptoVal = cid?.rawValue ?: tags["9F26"]?.value ?: ""
                 decision = TransactionDecision.ONLINE_AUTHORIZATION_REQUIRED
                 decisionTitle = "Approved Online (ARQC)"
                 decisionDescription = "Card generated an Authorisation Request Cryptogram (ARQC). Transaction was routed online and approved by the issuer host."
@@ -201,7 +202,7 @@ object TransactionResponseDecoder {
                 highlights.add(
                     AnalysisHighlight(
                         title = "Online Approved (ARQC)",
-                        description = "Cryptogram ARQC (${cid.rawValue}) generated and authorized online by host.",
+                        description = "Cryptogram ARQC ($cryptoVal) generated and authorized online by host.",
                         type = HighlightType.SUCCESS
                     )
                 )
@@ -224,12 +225,19 @@ object TransactionResponseDecoder {
             }
             tags.containsKey("5A") || tags.containsKey("57") -> {
                 decision = TransactionDecision.DATA_READ_ONLY
-                decisionTitle = "Card Read Successful"
-                decisionDescription = "Card data and EMV tags successfully retrieved from card."
-                isApproved = true
+                decisionTitle = "Card Read Only (No Cryptogram)"
+                decisionDescription = "Card data was read, but no Application Cryptogram (AC) was generated. Transaction is incomplete."
+                isApproved = false
                 isDeclined = false
                 isOnlineRequired = false
                 isSwitchInterfaceRequired = false
+                highlights.add(
+                    AnalysisHighlight(
+                        title = "No Cryptogram Generated",
+                        description = "Transaction was not authorized by card (missing Application Cryptogram).",
+                        type = HighlightType.WARNING
+                    )
+                )
             }
             else -> {
                 decision = TransactionDecision.TERMINATED_WITH_ERROR

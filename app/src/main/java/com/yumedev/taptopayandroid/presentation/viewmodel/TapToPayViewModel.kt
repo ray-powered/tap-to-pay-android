@@ -118,16 +118,39 @@ class TapToPayViewModel @Inject constructor(
                         emvCardData.transactionAnalysis.decision == TransactionDecision.SEE_PHONE_CDCVM ||
                         emvCardData.transactionAnalysis.cvmRequirement == CvmRequirement.CONSUMER_DEVICE_CVM_REQUIRED
 
-                    if (isSeePhone) {
-                        playFailedSoundUseCase()
-                        NfcState.SeePhone(
-                            instructions = emvCardData.transactionAnalysis.screenCheckInstructions
-                                ?: "Customer must authenticate on device (Face ID / Fingerprint / Passcode), then tap again.",
-                            lastData = emvCardData
-                        )
-                    } else {
-                        playSuccessSoundUseCase()
-                        NfcState.Success(emvCardData)
+                    val isDeclined = emvCardData.transactionAnalysis.isDeclined ||
+                        emvCardData.transactionAnalysis.decision == TransactionDecision.DECLINED_BY_CARD
+
+                    val isSwitchContact = emvCardData.transactionAnalysis.isSwitchInterfaceRequired ||
+                        emvCardData.transactionAnalysis.decision == TransactionDecision.SWITCH_INTERFACE_CONTACT
+
+                    val isApproved = emvCardData.transactionAnalysis.isApproved
+
+                    when {
+                        isSeePhone -> {
+                            playFailedSoundUseCase()
+                            NfcState.SeePhone(
+                                instructions = emvCardData.transactionAnalysis.screenCheckInstructions
+                                    ?: "Customer must authenticate on device (Face ID / Fingerprint / Passcode), then tap again.",
+                                lastData = emvCardData
+                            )
+                        }
+                        isSwitchContact -> {
+                            playFailedSoundUseCase()
+                            NfcState.Error("Please insert chip card into terminal (Contact chip required)")
+                        }
+                        isDeclined -> {
+                            playFailedSoundUseCase()
+                            NfcState.Error("Card declined transaction: ${emvCardData.transactionAnalysis.decisionTitle}")
+                        }
+                        !isApproved -> {
+                            playFailedSoundUseCase()
+                            NfcState.Error(emvCardData.transactionAnalysis.decisionTitle.ifEmpty { "Incomplete transaction: No cryptogram generated" })
+                        }
+                        else -> {
+                            playSuccessSoundUseCase()
+                            NfcState.Success(emvCardData)
+                        }
                     }
                 },
                 onFailure = { exception ->

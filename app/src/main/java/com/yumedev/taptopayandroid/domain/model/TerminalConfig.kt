@@ -23,9 +23,9 @@ data class TerminalConfig(
     val transactionType: String = "00", // 1 byte hex (00 = Purchase, 01 = Cash, 09 = Cashback, 20 = Refund)
 
     // Terminal Transaction Qualifiers (TTQ, Tag 9F66 - 4 bytes hex)
-    // 0x36, 0x20, 0x40, 0x00 indicates Contactless EMV (qVSDC) supported,
-    // MSD supported, Online PIN, Signature, Mobile CVM supported, Online Cryptogram required.
-    val ttqHex: String = "36204000",
+    // 0x76, 0x20, 0x40, 0x00 indicates Contactless EMV & qVSDC supported,
+    // Contact EMV chip, Online PIN, Signature, Mobile CDCVM supported, Offline PIN supported.
+    val ttqHex: String = "76204000",
 
     // Terminal Capabilities (Tag 9F33 - 3 bytes hex)
     // E0 F8 C8: IC, Magstripe, PIN, Signature, DDA, CDA
@@ -51,12 +51,24 @@ data class TerminalConfig(
     val ledColorMode: PosLedColorMode = PosLedColorMode.EMV_GREEN
 ) {
 
-    // --- TTQ Bitwise Accessors ---
-    // Byte 0: Bit 8 (0x80) MSD supported, Bit 7 (0x40) qVSDC/EMV supported, Bit 6 (0x20) Offline only,
-    //         Bit 5 (0x10) Online PIN, Bit 4 (0x08) Signature, Bit 3 (0x04) ODA for online auth
-    // Byte 1: Bit 8 (0x80) Online cryptogram required (ARQC), Bit 7 (0x40) CVM required, Bit 6 (0x20) Offline PIN
-    // Byte 2: Bit 8 (0x80) Issuer update supported, Bit 7 (0x40) Mobile CVM supported
-    // Byte 3: Reserved
+    // --- TTQ Bitwise Accessors (EMV Book B / VCPS Tag 9F66) ---
+    // Byte 1 (Index 0):
+    //   Bit 8 (0x80) Mag-stripe mode supported (MSD)
+    //   Bit 7 (0x40) Contactless VSDC (qVSDC) supported
+    //   Bit 6 (0x20) Contactless EMV mode supported
+    //   Bit 5 (0x10) EMV contact chip supported
+    //   Bit 4 (0x08) Reader is offline-only
+    //   Bit 3 (0x04) Online PIN supported
+    //   Bit 2 (0x02) Signature supported
+    //   Bit 1 (0x01) Offline Data Authentication (ODA) for Online Authorizations supported
+    // Byte 2 (Index 1):
+    //   Bit 8 (0x80) Online cryptogram required (ARQC)
+    //   Bit 7 (0x40) CVM required
+    //   Bit 6 (0x20) Contact chip offline PIN supported
+    // Byte 3 (Index 2):
+    //   Bit 8 (0x80) Issuer update processing supported
+    //   Bit 7 (0x40) Mobile functionality / Consumer Device CVM (CDCVM) supported
+    // Byte 4 (Index 3): Reserved (00)
 
     private fun getTtqBytes(): ByteArray {
         val clean = ttqHex.replace(" ", "")
@@ -74,17 +86,24 @@ data class TerminalConfig(
         return (bytes[byteIndex].toInt() and bitMask) != 0
     }
 
+    // Byte 1
     val ttqMagStripeSupported: Boolean get() = isTtqBitSet(0, 0x80)
-    val ttqEmvSupported: Boolean get() = isTtqBitSet(0, 0x40)
-    val ttqEmvOfflineOnly: Boolean get() = isTtqBitSet(0, 0x20)
-    val ttqOnlinePinSupported: Boolean get() = isTtqBitSet(0, 0x10)
-    val ttqSignatureSupported: Boolean get() = isTtqBitSet(0, 0x08)
-    val ttqOfflineDataAuthSupported: Boolean get() = isTtqBitSet(0, 0x04)
+    val ttqQvsdcSupported: Boolean get() = isTtqBitSet(0, 0x40)
+    val ttqEmvSupported: Boolean get() = isTtqBitSet(0, 0x40) // Alias for qVSDC
+    val ttqEmvModeSupported: Boolean get() = isTtqBitSet(0, 0x20)
+    val ttqContactChipSupported: Boolean get() = isTtqBitSet(0, 0x10)
+    val ttqReaderOfflineOnly: Boolean get() = isTtqBitSet(0, 0x08)
+    val ttqEmvOfflineOnly: Boolean get() = isTtqBitSet(0, 0x08) // Backward compat alias
+    val ttqOnlinePinSupported: Boolean get() = isTtqBitSet(0, 0x04)
+    val ttqSignatureSupported: Boolean get() = isTtqBitSet(0, 0x02)
+    val ttqOfflineDataAuthSupported: Boolean get() = isTtqBitSet(0, 0x01)
 
+    // Byte 2
     val ttqOnlineCryptogramRequired: Boolean get() = isTtqBitSet(1, 0x80)
     val ttqCvmRequired: Boolean get() = isTtqBitSet(1, 0x40)
     val ttqContactOfflinePinSupported: Boolean get() = isTtqBitSet(1, 0x20)
 
+    // Byte 3
     val ttqIssuerUpdateSupported: Boolean get() = isTtqBitSet(2, 0x80)
     val ttqMobileCvmSupported: Boolean get() = isTtqBitSet(2, 0x40)
 
@@ -98,6 +117,68 @@ data class TerminalConfig(
         val newTtqHex = bytes.joinToString("") { "%02X".format(it) }
         return copy(ttqHex = newTtqHex)
     }
+
+    // --- Terminal Capabilities (Tag 9F33 - 3 bytes hex) Bitwise Accessors (EMV Book 4) ---
+    // Byte 1: Card Data Input Capability
+    //   Bit 8 (0x80) Manual Key Entry
+    //   Bit 7 (0x40) Magnetic Stripe
+    //   Bit 6 (0x20) IC with Contacts
+    // Byte 2: Cardholder Verification Method (CVM) Capability
+    //   Bit 8 (0x80) Plaintext PIN for Offline Verification
+    //   Bit 7 (0x40) Enciphered PIN for Online Verification
+    //   Bit 6 (0x20) Signature (paper)
+    //   Bit 5 (0x10) Enciphered PIN for Offline Verification
+    //   Bit 4 (0x08) No CVM Required
+    // Byte 3: Security Capability
+    //   Bit 8 (0x80) SDA (Static Data Authentication)
+    //   Bit 7 (0x40) DDA (Dynamic Data Authentication)
+    //   Bit 6 (0x20) Card Capture
+    //   Bit 4 (0x08) CDA (Combined DDA/AC Generation)
+
+    private fun getTerminalCapabilitiesBytes(): ByteArray {
+        val clean = terminalCapabilitiesHex.replace(" ", "")
+        val bytes = ByteArray(3)
+        for (i in 0 until 3) {
+            val hexPair = if (i * 2 + 2 <= clean.length) clean.substring(i * 2, i * 2 + 2) else "00"
+            bytes[i] = hexPair.toIntOrNull(16)?.toByte() ?: 0
+        }
+        return bytes
+    }
+
+    private fun isTerminalCapabilityBitSet(byteIndex: Int, bitMask: Int): Boolean {
+        val bytes = getTerminalCapabilitiesBytes()
+        if (byteIndex !in 0..2) return false
+        return (bytes[byteIndex].toInt() and bitMask) != 0
+    }
+
+    fun withTerminalCapabilityBit(byteIndex: Int, bitMask: Int, enabled: Boolean): TerminalConfig {
+        val bytes = getTerminalCapabilitiesBytes()
+        if (byteIndex in 0..2) {
+            val current = bytes[byteIndex].toInt() and 0xFF
+            val updated = if (enabled) current or bitMask else current and bitMask.inv()
+            bytes[byteIndex] = updated.toByte()
+        }
+        val newHex = bytes.joinToString("") { "%02X".format(it) }
+        return copy(terminalCapabilitiesHex = newHex)
+    }
+
+    // Byte 1: Card Data Input Capability
+    val capManualKeyEntry: Boolean get() = isTerminalCapabilityBitSet(0, 0x80)
+    val capMagneticStripe: Boolean get() = isTerminalCapabilityBitSet(0, 0x40)
+    val capContactIC: Boolean get() = isTerminalCapabilityBitSet(0, 0x20)
+
+    // Byte 2: CVM Capability
+    val capPlaintextOfflinePin: Boolean get() = isTerminalCapabilityBitSet(1, 0x80)
+    val capOnlinePin: Boolean get() = isTerminalCapabilityBitSet(1, 0x40)
+    val capSignature: Boolean get() = isTerminalCapabilityBitSet(1, 0x20)
+    val capEncipheredOfflinePin: Boolean get() = isTerminalCapabilityBitSet(1, 0x10)
+    val capNoCvm: Boolean get() = isTerminalCapabilityBitSet(1, 0x08)
+
+    // Byte 3: Security Capability
+    val capSda: Boolean get() = isTerminalCapabilityBitSet(2, 0x80)
+    val capDda: Boolean get() = isTerminalCapabilityBitSet(2, 0x40)
+    val capCardCapture: Boolean get() = isTerminalCapabilityBitSet(2, 0x20)
+    val capCda: Boolean get() = isTerminalCapabilityBitSet(2, 0x08)
 
     // --- Formatting Helpers ---
     val formattedTtq: String
@@ -169,18 +250,20 @@ data class TerminalConfig(
 
         // Preset TTQ configurations (Tag 9F66)
         val TtqPresets = listOf(
-            TtqPreset("Standard Online POS", "36204000", "qVSDC + MSD + Online PIN + Signature + Mobile CVM + ARQC"),
-            TtqPreset("Mobile CVM Preferred (Apple/Google Pay)", "36204000", "Contactless EMV + CDCVM required for mobile wallets"),
-            TtqPreset("Contactless EMV Only (No MSD)", "26204000", "Strict EMV chip emulation, magstripe disabled"),
-            TtqPreset("Offline Capable POS", "36004000", "Offline transaction permitted, no online cryptogram required"),
-            TtqPreset("Signature Only POS", "32200000", "Contactless with signature CVM only")
+            TtqPreset("Standard Online POS", "76204000", "qVSDC + Contactless EMV + Contact Chip + Online PIN + Signature + Mobile CVM"),
+            TtqPreset("Online POS w/ MSD", "F6204000", "MSD + qVSDC + Contactless EMV + Contact Chip + Online PIN + Signature + Mobile CVM"),
+            TtqPreset("Strict Online (ARQC Required)", "76A04000", "Standard Online POS + Online Cryptogram Required + CVM Required"),
+            TtqPreset("Mobile CVM Preferred", "76204000", "Contactless EMV + CDCVM (Apple Pay / Google Pay) supported"),
+            TtqPreset("Offline Capable POS", "76004000", "Offline transaction permitted, no online cryptogram required"),
+            TtqPreset("Signature Only POS", "72200000", "Contactless with signature CVM only (no Online PIN)")
         )
 
         // Preset Terminal Capabilities (Tag 9F33)
         val CapabilitiesPresets = listOf(
-            CapabilitiesPreset("Standard All-in-One POS", "E0F8C8", "IC + Magstripe + PIN + Signature + DDA + CDA"),
-            CapabilitiesPreset("Chip & Online PIN Only", "204008", "IC contact/contactless + Online PIN + CDA"),
-            CapabilitiesPreset("Contactless Mobile Only", "60B8C8", "Magstripe + IC + Mobile CVM + CDA")
+            CapabilitiesPreset("Standard All-in-One POS", "E0F8C8", "Key + Magstripe + IC + PINs + Signature + No CVM + SDA + DDA + CDA"),
+            CapabilitiesPreset("Chip & Online PIN Only", "204008", "Contact IC + Online PIN + CDA"),
+            CapabilitiesPreset("Chip & PIN / Signature", "206008", "Contact IC + Online PIN + Signature + CDA"),
+            CapabilitiesPreset("Contactless Mobile & Chip", "60B8C8", "Magstripe + IC + Online PIN + Signature + No CVM + SDA + DDA + CDA")
         )
 
         // Preset Terminal Types (Tag 9F35)

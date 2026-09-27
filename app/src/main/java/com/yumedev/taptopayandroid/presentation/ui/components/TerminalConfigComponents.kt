@@ -549,19 +549,16 @@ fun TtqEditorDialog(
                     color = MaterialTheme.colorScheme.primary
                 )
 
-                TtqSwitchItem(
-                    title = "Contactless EMV Mode (qVSDC)",
-                    subtitle = "Byte 1 Bit 7 (0x40) · Standard contactless chip",
-                    checked = tempConfig.ttqEmvSupported,
-                    onCheckedChange = {
-                        tempConfig = tempConfig.withTtqBit(0, 0x40, it)
-                        directHexInput = tempConfig.ttqHex
-                    }
+                Text(
+                    text = "Byte 1: Reader Capabilities",
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
 
                 TtqSwitchItem(
                     title = "Contactless Magstripe Mode (MSD)",
-                    subtitle = "Byte 1 Bit 8 (0x80) · Backward compatible MSD emulation",
+                    subtitle = "Byte 1 Bit 8 (0x80) · Magnetic stripe emulation mode",
                     checked = tempConfig.ttqMagStripeSupported,
                     onCheckedChange = {
                         tempConfig = tempConfig.withTtqBit(0, 0x80, it)
@@ -570,29 +567,29 @@ fun TtqEditorDialog(
                 )
 
                 TtqSwitchItem(
-                    title = "Online Cryptogram Required (ARQC)",
-                    subtitle = "Byte 2 Bit 8 (0x80) · Must generate online authorization request",
-                    checked = tempConfig.ttqOnlineCryptogramRequired,
+                    title = "Contactless VSDC (qVSDC) Supported",
+                    subtitle = "Byte 1 Bit 7 (0x40) · Visa/EMV contactless standard",
+                    checked = tempConfig.ttqQvsdcSupported,
                     onCheckedChange = {
-                        tempConfig = tempConfig.withTtqBit(1, 0x80, it)
+                        tempConfig = tempConfig.withTtqBit(0, 0x40, it)
                         directHexInput = tempConfig.ttqHex
                     }
                 )
 
                 TtqSwitchItem(
-                    title = "Mobile CVM Supported",
-                    subtitle = "Byte 3 Bit 7 (0x40) · Apple Pay / Google Pay / Biometric",
-                    checked = tempConfig.ttqMobileCvmSupported,
+                    title = "Contactless EMV Mode Supported",
+                    subtitle = "Byte 1 Bit 6 (0x20) · Full contactless chip mode",
+                    checked = tempConfig.ttqEmvModeSupported,
                     onCheckedChange = {
-                        tempConfig = tempConfig.withTtqBit(2, 0x40, it)
+                        tempConfig = tempConfig.withTtqBit(0, 0x20, it)
                         directHexInput = tempConfig.ttqHex
                     }
                 )
 
                 TtqSwitchItem(
-                    title = "Online PIN Supported",
-                    subtitle = "Byte 1 Bit 5 (0x10) · PIN pad online verification",
-                    checked = tempConfig.ttqOnlinePinSupported,
+                    title = "EMV Contact Chip Supported",
+                    subtitle = "Byte 1 Bit 5 (0x10) · Reader has contact IC slot",
+                    checked = tempConfig.ttqContactChipSupported,
                     onCheckedChange = {
                         tempConfig = tempConfig.withTtqBit(0, 0x10, it)
                         directHexInput = tempConfig.ttqHex
@@ -600,11 +597,58 @@ fun TtqEditorDialog(
                 )
 
                 TtqSwitchItem(
-                    title = "Paper Signature Supported",
-                    subtitle = "Byte 1 Bit 4 (0x08) · Traditional receipt signature",
-                    checked = tempConfig.ttqSignatureSupported,
+                    title = "Reader is Offline-Only",
+                    subtitle = "Byte 1 Bit 4 (0x08) · Offline-only reader terminal",
+                    checked = tempConfig.ttqReaderOfflineOnly,
                     onCheckedChange = {
                         tempConfig = tempConfig.withTtqBit(0, 0x08, it)
+                        directHexInput = tempConfig.ttqHex
+                    }
+                )
+
+                TtqSwitchItem(
+                    title = "Online PIN Supported",
+                    subtitle = "Byte 1 Bit 3 (0x04) · PIN pad online verification",
+                    checked = tempConfig.ttqOnlinePinSupported,
+                    onCheckedChange = {
+                        tempConfig = tempConfig.withTtqBit(0, 0x04, it)
+                        directHexInput = tempConfig.ttqHex
+                    }
+                )
+
+                TtqSwitchItem(
+                    title = "Paper Signature Supported",
+                    subtitle = "Byte 1 Bit 2 (0x02) · Traditional receipt signature",
+                    checked = tempConfig.ttqSignatureSupported,
+                    onCheckedChange = {
+                        tempConfig = tempConfig.withTtqBit(0, 0x02, it)
+                        directHexInput = tempConfig.ttqHex
+                    }
+                )
+
+                TtqSwitchItem(
+                    title = "ODA for Online Authorizations",
+                    subtitle = "Byte 1 Bit 1 (0x01) · Offline data authentication for online auth",
+                    checked = tempConfig.ttqOfflineDataAuthSupported,
+                    onCheckedChange = {
+                        tempConfig = tempConfig.withTtqBit(0, 0x01, it)
+                        directHexInput = tempConfig.ttqHex
+                    }
+                )
+
+                Text(
+                    text = "Byte 2: Transaction Requirements",
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                TtqSwitchItem(
+                    title = "Online Cryptogram Required (ARQC)",
+                    subtitle = "Byte 2 Bit 8 (0x80) · Card must request online authorization",
+                    checked = tempConfig.ttqOnlineCryptogramRequired,
+                    onCheckedChange = {
+                        tempConfig = tempConfig.withTtqBit(1, 0x80, it)
                         directHexInput = tempConfig.ttqHex
                     }
                 )
@@ -620,11 +664,38 @@ fun TtqEditorDialog(
                 )
 
                 TtqSwitchItem(
+                    title = "Contact Chip Offline PIN Supported",
+                    subtitle = "Byte 2 Bit 6 (0x20) · Offline PIN verification supported",
+                    checked = tempConfig.ttqContactOfflinePinSupported,
+                    onCheckedChange = {
+                        tempConfig = tempConfig.withTtqBit(1, 0x20, it)
+                        directHexInput = tempConfig.ttqHex
+                    }
+                )
+
+                Text(
+                    text = "Byte 3: Mobile & Additional",
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                TtqSwitchItem(
                     title = "Issuer Update Supported",
                     subtitle = "Byte 3 Bit 8 (0x80) · Post-auth card script processing",
                     checked = tempConfig.ttqIssuerUpdateSupported,
                     onCheckedChange = {
                         tempConfig = tempConfig.withTtqBit(2, 0x80, it)
+                        directHexInput = tempConfig.ttqHex
+                    }
+                )
+
+                TtqSwitchItem(
+                    title = "Mobile CVM Supported (CDCVM)",
+                    subtitle = "Byte 3 Bit 7 (0x40) · Apple Pay / Google Pay on-device verification",
+                    checked = tempConfig.ttqMobileCvmSupported,
+                    onCheckedChange = {
+                        tempConfig = tempConfig.withTtqBit(2, 0x40, it)
                         directHexInput = tempConfig.ttqHex
                     }
                 )
@@ -691,16 +762,29 @@ fun TerminalCapabilitiesDialog(
     onDismiss: () -> Unit,
     onConfirm: (newHex: String) -> Unit
 ) {
-    var selectedHex by remember { mutableStateOf(currentCapabilitiesHex) }
+    val cleanInitial = currentCapabilitiesHex.filter { it.isLetterOrDigit() }.padEnd(6, '0').take(6).uppercase()
+    var tempConfig by remember {
+        mutableStateOf(TerminalConfig(terminalCapabilitiesHex = cleanInitial))
+    }
+    var directHexInput by remember { mutableStateOf(cleanInitial) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
-            Text(
-                text = "Terminal Capabilities (Tag 9F33 - 3 Bytes)",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold
-            )
+            Column {
+                Text(
+                    text = "Terminal Capabilities (Tag 9F33 - 3 Bytes)",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = "Current Value: ${tempConfig.formattedTerminalCapabilities}",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontFamily = FontFamily.Monospace,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Bold
+                )
+            }
         },
         text = {
             Column(
@@ -708,7 +792,7 @@ fun TerminalCapabilitiesDialog(
                     .fillMaxWidth()
                     .heightIn(max = 420.dp)
                     .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Text(
                     text = "Quick Presets",
@@ -718,11 +802,14 @@ fun TerminalCapabilitiesDialog(
                 )
 
                 TerminalConfig.CapabilitiesPresets.forEach { preset ->
-                    val isSelected = selectedHex.equals(preset.hex, ignoreCase = true)
+                    val isSelected = tempConfig.terminalCapabilitiesHex.equals(preset.hex, ignoreCase = true)
                     Surface(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable { selectedHex = preset.hex },
+                            .clickable {
+                                tempConfig = tempConfig.copy(terminalCapabilitiesHex = preset.hex)
+                                directHexInput = preset.hex
+                            },
                         shape = RoundedCornerShape(8.dp),
                         border = if (isSelected) BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary) else null,
                         color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
@@ -764,20 +851,181 @@ fun TerminalCapabilitiesDialog(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(6.dp))
+                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
 
                 OutlinedTextField(
-                    value = selectedHex,
-                    onValueChange = { if (it.length <= 6) selectedHex = it.uppercase() },
-                    label = { Text("Custom HEX (3 Bytes / 6 Chars, e.g. E0F8C8)") },
+                    value = directHexInput,
+                    onValueChange = { input ->
+                        val clean = input.filter { it.isLetterOrDigit() }.take(6).uppercase()
+                        directHexInput = clean
+                        if (clean.length == 6) {
+                            tempConfig = tempConfig.copy(terminalCapabilitiesHex = clean)
+                        }
+                    },
+                    label = { Text("Direct HEX Edit (3 Bytes / 6 Chars)") },
                     singleLine = true,
                     textStyle = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace),
                     modifier = Modifier.fillMaxWidth()
                 )
+
+                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+
+                Text(
+                    text = "Individual Bit Flags Control",
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+
+                Text(
+                    text = "Byte 1: Card Data Input Capability",
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                TtqSwitchItem(
+                    title = "Manual Key Entry",
+                    subtitle = "Byte 1 Bit 8 (0x80) · Keypad card number entry",
+                    checked = tempConfig.capManualKeyEntry,
+                    onCheckedChange = {
+                        tempConfig = tempConfig.withTerminalCapabilityBit(0, 0x80, it)
+                        directHexInput = tempConfig.terminalCapabilitiesHex
+                    }
+                )
+
+                TtqSwitchItem(
+                    title = "Magnetic Stripe",
+                    subtitle = "Byte 1 Bit 7 (0x40) · Magstripe swipe reader",
+                    checked = tempConfig.capMagneticStripe,
+                    onCheckedChange = {
+                        tempConfig = tempConfig.withTerminalCapabilityBit(0, 0x40, it)
+                        directHexInput = tempConfig.terminalCapabilitiesHex
+                    }
+                )
+
+                TtqSwitchItem(
+                    title = "IC with Contacts (Contact Chip)",
+                    subtitle = "Byte 1 Bit 6 (0x20) · Physical chip card slot",
+                    checked = tempConfig.capContactIC,
+                    onCheckedChange = {
+                        tempConfig = tempConfig.withTerminalCapabilityBit(0, 0x20, it)
+                        directHexInput = tempConfig.terminalCapabilitiesHex
+                    }
+                )
+
+                Text(
+                    text = "Byte 2: CVM Capabilities",
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                TtqSwitchItem(
+                    title = "Plaintext Offline PIN",
+                    subtitle = "Byte 2 Bit 8 (0x80) · IC card offline PIN verification",
+                    checked = tempConfig.capPlaintextOfflinePin,
+                    onCheckedChange = {
+                        tempConfig = tempConfig.withTerminalCapabilityBit(1, 0x80, it)
+                        directHexInput = tempConfig.terminalCapabilitiesHex
+                    }
+                )
+
+                TtqSwitchItem(
+                    title = "Enciphered Online PIN",
+                    subtitle = "Byte 2 Bit 7 (0x40) · Online PIN host verification",
+                    checked = tempConfig.capOnlinePin,
+                    onCheckedChange = {
+                        tempConfig = tempConfig.withTerminalCapabilityBit(1, 0x40, it)
+                        directHexInput = tempConfig.terminalCapabilitiesHex
+                    }
+                )
+
+                TtqSwitchItem(
+                    title = "Paper Signature",
+                    subtitle = "Byte 2 Bit 6 (0x20) · Receipt / screen signature",
+                    checked = tempConfig.capSignature,
+                    onCheckedChange = {
+                        tempConfig = tempConfig.withTerminalCapabilityBit(1, 0x20, it)
+                        directHexInput = tempConfig.terminalCapabilitiesHex
+                    }
+                )
+
+                TtqSwitchItem(
+                    title = "Enciphered Offline PIN",
+                    subtitle = "Byte 2 Bit 5 (0x10) · Encrypted offline PIN to card chip",
+                    checked = tempConfig.capEncipheredOfflinePin,
+                    onCheckedChange = {
+                        tempConfig = tempConfig.withTerminalCapabilityBit(1, 0x10, it)
+                        directHexInput = tempConfig.terminalCapabilitiesHex
+                    }
+                )
+
+                TtqSwitchItem(
+                    title = "No CVM Required",
+                    subtitle = "Byte 2 Bit 4 (0x08) · Small amount contactless / no verification",
+                    checked = tempConfig.capNoCvm,
+                    onCheckedChange = {
+                        tempConfig = tempConfig.withTerminalCapabilityBit(1, 0x08, it)
+                        directHexInput = tempConfig.terminalCapabilitiesHex
+                    }
+                )
+
+                Text(
+                    text = "Byte 3: Security Capabilities",
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                TtqSwitchItem(
+                    title = "Static Data Authentication (SDA)",
+                    subtitle = "Byte 3 Bit 8 (0x80) · Static offline authentication",
+                    checked = tempConfig.capSda,
+                    onCheckedChange = {
+                        tempConfig = tempConfig.withTerminalCapabilityBit(2, 0x80, it)
+                        directHexInput = tempConfig.terminalCapabilitiesHex
+                    }
+                )
+
+                TtqSwitchItem(
+                    title = "Dynamic Data Authentication (DDA)",
+                    subtitle = "Byte 3 Bit 7 (0x40) · Dynamic offline authentication",
+                    checked = tempConfig.capDda,
+                    onCheckedChange = {
+                        tempConfig = tempConfig.withTerminalCapabilityBit(2, 0x40, it)
+                        directHexInput = tempConfig.terminalCapabilitiesHex
+                    }
+                )
+
+                TtqSwitchItem(
+                    title = "Card Capture",
+                    subtitle = "Byte 3 Bit 6 (0x20) · Terminal can retain card",
+                    checked = tempConfig.capCardCapture,
+                    onCheckedChange = {
+                        tempConfig = tempConfig.withTerminalCapabilityBit(2, 0x20, it)
+                        directHexInput = tempConfig.terminalCapabilitiesHex
+                    }
+                )
+
+                TtqSwitchItem(
+                    title = "Combined DDA/AC Generation (CDA)",
+                    subtitle = "Byte 3 Bit 4 (0x08) · CDA offline data authentication",
+                    checked = tempConfig.capCda,
+                    onCheckedChange = {
+                        tempConfig = tempConfig.withTerminalCapabilityBit(2, 0x08, it)
+                        directHexInput = tempConfig.terminalCapabilitiesHex
+                    }
+                )
             }
         },
         confirmButton = {
-            Button(onClick = { onConfirm(selectedHex.padEnd(6, '0').take(6).uppercase()) }) {
+            Button(
+                onClick = {
+                    val finalHex = directHexInput.padEnd(6, '0').take(6).uppercase()
+                    onConfirm(finalHex)
+                }
+            ) {
                 Text("Save")
             }
         },
