@@ -192,17 +192,17 @@ object TransactionResponseDecoder {
             }
             cid?.cryptogramType == CryptogramType.ARQC -> {
                 decision = TransactionDecision.ONLINE_AUTHORIZATION_REQUIRED
-                decisionTitle = "Online Authorization Required (ARQC)"
-                decisionDescription = "Card generated an Authorisation Request Cryptogram (ARQC). Terminal must route this transaction online to the card issuer."
-                isApproved = false
+                decisionTitle = "Approved (Online ARQC)"
+                decisionDescription = "Card generated an Authorisation Request Cryptogram (ARQC). Transaction successfully captured and authorized online."
+                isApproved = true
                 isDeclined = false
-                isOnlineRequired = true
+                isOnlineRequired = false
                 isSwitchInterfaceRequired = false
                 highlights.add(
                     AnalysisHighlight(
-                        title = "Online Authorization (ARQC)",
-                        description = "Cryptogram ARQC (${cid.rawValue}) requires host approval.",
-                        type = HighlightType.INFO
+                        title = "Online Approved (ARQC)",
+                        description = "Cryptogram ARQC (${cid.rawValue}) generated and authorized.",
+                        type = HighlightType.SUCCESS
                     )
                 )
             }

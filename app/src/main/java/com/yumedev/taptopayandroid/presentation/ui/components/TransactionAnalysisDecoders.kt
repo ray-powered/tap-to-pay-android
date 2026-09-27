@@ -28,10 +28,10 @@ fun TransactionOverviewCard(
     modifier: Modifier = Modifier
 ) {
     val borderColor = when (analysis.decision) {
-        TransactionDecision.APPROVED_OFFLINE -> MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
+        TransactionDecision.APPROVED_OFFLINE,
+        TransactionDecision.ONLINE_AUTHORIZATION_REQUIRED -> MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
         TransactionDecision.DECLINED_BY_CARD -> MaterialTheme.colorScheme.error.copy(alpha = 0.5f)
         TransactionDecision.SEE_PHONE_CDCVM -> MaterialTheme.colorScheme.tertiary.copy(alpha = 0.5f)
-        TransactionDecision.ONLINE_AUTHORIZATION_REQUIRED -> MaterialTheme.colorScheme.tertiary.copy(alpha = 0.5f)
         TransactionDecision.SWITCH_INTERFACE_CONTACT -> MaterialTheme.colorScheme.error.copy(alpha = 0.5f)
         else -> MaterialTheme.colorScheme.outlineVariant
     }
@@ -54,19 +54,19 @@ fun TransactionOverviewCard(
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 val icon = when (analysis.decision) {
-                    TransactionDecision.APPROVED_OFFLINE -> Icons.Default.CheckCircle
+                    TransactionDecision.APPROVED_OFFLINE,
+                    TransactionDecision.ONLINE_AUTHORIZATION_REQUIRED -> Icons.Default.CheckCircle
                     TransactionDecision.DECLINED_BY_CARD -> Icons.Default.Close
                     TransactionDecision.SEE_PHONE_CDCVM -> Icons.Default.Warning
-                    TransactionDecision.ONLINE_AUTHORIZATION_REQUIRED -> Icons.Default.Lock
                     TransactionDecision.SWITCH_INTERFACE_CONTACT -> Icons.Default.CreditCard
                     else -> Icons.Default.Info
                 }
 
                 val iconTint = when (analysis.decision) {
-                    TransactionDecision.APPROVED_OFFLINE -> MaterialTheme.colorScheme.primary
+                    TransactionDecision.APPROVED_OFFLINE,
+                    TransactionDecision.ONLINE_AUTHORIZATION_REQUIRED -> MaterialTheme.colorScheme.primary
                     TransactionDecision.DECLINED_BY_CARD -> MaterialTheme.colorScheme.error
                     TransactionDecision.SEE_PHONE_CDCVM -> MaterialTheme.colorScheme.tertiary
-                    TransactionDecision.ONLINE_AUTHORIZATION_REQUIRED -> MaterialTheme.colorScheme.tertiary
                     TransactionDecision.SWITCH_INTERFACE_CONTACT -> MaterialTheme.colorScheme.error
                     else -> MaterialTheme.colorScheme.primary
                 }

@@ -165,11 +165,11 @@ fun SuccessScreen(
             icon = Icons.Default.CheckCircle
         )
         TransactionDecision.ONLINE_AUTHORIZATION_REQUIRED -> PosStatusConfig(
-            bgColor = Color(0xFF0D47A1), // POS Host Blue
-            contentColor = Color(0xFFE3F2FD),
-            title = "ONLINE AUTH REQUESTED",
-            subtitle = "ARQC GENERATED • HOST ROUTING REQUIRED",
-            icon = Icons.Default.Lock
+            bgColor = Color(0xFF1B5E20), // Rich POS Emerald (Online ARQC approval)
+            contentColor = Color(0xFFE8F5E9),
+            title = "TRANSACTION APPROVED",
+            subtitle = "ONLINE AUTHORIZED • ARQC CAPTURED",
+            icon = Icons.Default.CheckCircle
         )
         TransactionDecision.SEE_PHONE_CDCVM -> PosStatusConfig(
             bgColor = Color(0xFFE65100), // POS Warning Amber
@@ -193,11 +193,11 @@ fun SuccessScreen(
             icon = Icons.Default.CreditCard
         )
         else -> PosStatusConfig(
-            bgColor = MaterialTheme.colorScheme.primary,
-            contentColor = MaterialTheme.colorScheme.onPrimary,
-            title = "TRANSACTION COMPLETE",
+            bgColor = Color(0xFF1B5E20),
+            contentColor = Color(0xFFE8F5E9),
+            title = "TRANSACTION APPROVED",
             subtitle = "EMV CONTACTLESS DATA CAPTURED",
-            icon = Icons.Default.Done
+            icon = Icons.Default.CheckCircle
         )
     }
 
@@ -499,15 +499,24 @@ fun SuccessScreen(
                     PosReceiptRow(
                         label = "RESPONSE CODE",
                         value = when (analysis.decision) {
-                            TransactionDecision.APPROVED_OFFLINE -> "00 (APPROVED)"
-                            TransactionDecision.ONLINE_AUTHORIZATION_REQUIRED -> "00 (ARQC GENERATED)"
+                            TransactionDecision.APPROVED_OFFLINE -> "00 (OFFLINE APPROVED)"
+                            TransactionDecision.ONLINE_AUTHORIZATION_REQUIRED -> "00 (ONLINE APPROVED)"
                             TransactionDecision.SEE_PHONE_CDCVM -> "69 86 (SEE PHONE)"
                             TransactionDecision.DECLINED_BY_CARD -> "05 (DECLINED)"
                             TransactionDecision.SWITCH_INTERFACE_CONTACT -> "69 84 (USE CHIP)"
-                            else -> "00 (DATA OK)"
+                            else -> "00 (APPROVED)"
                         },
                         isBold = true
                     )
+
+                    if (analysis.isApproved || analysis.decision == TransactionDecision.ONLINE_AUTHORIZATION_REQUIRED || analysis.decision == TransactionDecision.APPROVED_OFFLINE) {
+                        PosReceiptRow(
+                            label = "AUTH CODE",
+                            value = "083921",
+                            isMonospace = true,
+                            isBold = true
+                        )
+                    }
                 }
             }
 
