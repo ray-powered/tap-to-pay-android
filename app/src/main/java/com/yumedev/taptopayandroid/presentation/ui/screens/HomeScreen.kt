@@ -262,7 +262,7 @@ fun HomeScreen(
                         style = MaterialTheme.typography.displayMedium,
                         fontFamily = FontFamily.Monospace,
                         fontWeight = FontWeight.Medium,
-                        fontSize = (amountFontSize.value * 0.7f).sp,
+                        fontSize = amountFontSize * 0.7f,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Spacer(modifier = Modifier.width(6.dp))

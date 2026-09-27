@@ -1,6 +1,7 @@
 package com.yumedev.taptopayandroid.presentation.ui.screens
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -171,11 +172,49 @@ fun ApduCommandsTab(
                 cmd.responseApdu.contains(searchQuery, ignoreCase = true)
     }
 
+    val hasGenAc = commands.any { it.name.contains("GENERATE AC", ignoreCase = true) }
+
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
+        if (!hasGenAc && searchQuery.isEmpty()) {
+            item {
+                Surface(
+                    shape = RoundedCornerShape(10.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Info,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            Text(
+                                text = "Streamlined Mode (Visa qVSDC / Fast Path)",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = "Application Cryptogram (9F26) is generated directly during GET PROCESSING OPTIONS. In this mode, EMV contactless specifications omit the separate GENERATE AC command to optimize tap speed.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
         items(
             items = filteredCommands,
             key = { command -> command.sequence }

@@ -177,7 +177,7 @@ class NfcCardReader @Inject constructor(
 
             // Step 4: Get Processing Options (GPO)
             // Parse PDOL (Processing Options Data Object List) from AID response to build real EMV parameters
-            val pdol = findTag(finalAidResponse, 0x9F.toByte(), 0x38.toByte())
+            val pdol = emvTagParser.findTag(finalAidResponse, "9F38") ?: findTag(finalAidResponse, 0x9F.toByte(), 0x38.toByte())
             val gpoCommand = if (pdol != null && pdol.isNotEmpty()) {
                 val dolItems = parseDol(pdol)
                 SecureLogger.d(TAG) { "Found PDOL (${dolItems.size} items): ${dolItems.joinToString { "${it.tag}:${it.length}B" }}" }
@@ -210,10 +210,17 @@ class NfcCardReader @Inject constructor(
             notifyApdu("GET PROCESSING OPTIONS")
             val gpoResponse = isoDep.transceive(gpoCommand)
 
+            val gpoCleanForCheck = if (isSuccessResponse(gpoResponse)) removeStatusWord(gpoResponse) else gpoResponse
+            val gpoHasCryptogram = emvTagParser.findTag(gpoCleanForCheck, "9F26") != null
+
             apduCommands.add(ApduCommand(
                 sequence = commandSequence++,
                 name = "GET PROCESSING OPTIONS",
-                description = "Request card processing options with terminal transaction data",
+                description = if (gpoHasCryptogram) {
+                    "Request card processing options (Streamlined qVSDC: Application Cryptogram 9F26 generated in this step)"
+                } else {
+                    "Request card processing options with terminal transaction data"
+                },
                 commandApdu = gpoCommand.toHexString(),
                 responseApdu = gpoResponse.toHexString(),
                 statusWord = getStatusWord(gpoResponse),
@@ -228,12 +235,12 @@ class NfcCardReader @Inject constructor(
                 allRecords.add(cleanGpo)
 
                 // Extract AIP (Application Interchange Profile) from GPO response
-                aipBytes = findTag(cleanGpo, 0x82.toByte()) ?: if (cleanGpo.size >= 4 && cleanGpo[0] == 0x80.toByte()) {
+                aipBytes = emvTagParser.findTag(cleanGpo, "82") ?: findTag(cleanGpo, 0x82.toByte()) ?: if (cleanGpo.size >= 4 && cleanGpo[0] == 0x80.toByte()) {
                     cleanGpo.copyOfRange(2, 4)
                 } else null
 
                 // Parse AFL (Application File Locator) from GPO response
-                val afl = findTag(cleanGpo, 0x94.toByte()) ?: if (cleanGpo.size > 4 && cleanGpo[0] == 0x80.toByte()) {
+                val afl = emvTagParser.findTag(cleanGpo, "94") ?: findTag(cleanGpo, 0x94.toByte()) ?: if (cleanGpo.size > 4 && cleanGpo[0] == 0x80.toByte()) {
                     cleanGpo.copyOfRange(4, cleanGpo.size)
                 } else null
 
@@ -331,12 +338,16 @@ class NfcCardReader @Inject constructor(
             // Step 5: Transaction APDU - GENERATE AC (Application Cryptogram)
             try {
                 val combinedRecords = allRecords.flatMap { it.toList() }.toByteArray()
-                val alreadyHasCryptogram = findTag(combinedRecords, 0x9F.toByte(), 0x26.toByte()) != null
+                val alreadyHasCryptogram = emvTagParser.findTag(combinedRecords, "9F26") != null
                 if (alreadyHasCryptogram) {
                     SecureLogger.d(TAG) { "Cryptogram (9F26) already returned in GPO/records (Streamlined Contactless mode)" }
                 } else {
-                    val cdol1 = findTag(combinedRecords, 0x8C.toByte()) ?: findTag(finalAidResponse, 0x8C.toByte())
-                    if (cdol1 != null && cdol1.size in 2..64) {
+                    val cdol1 = emvTagParser.findTag(combinedRecords, "8C")
+                        ?: emvTagParser.findTag(finalAidResponse, "8C")
+                        ?: findTag(combinedRecords, 0x8C.toByte())
+                        ?: findTag(finalAidResponse, 0x8C.toByte())
+
+                    if (cdol1 != null && cdol1.size in 2..255) {
                         val cdolItems = parseDol(cdol1)
                         if (cdolItems.isNotEmpty()) {
                             SecureLogger.d(TAG) { "Found CDOL1 (${cdolItems.size} items): ${cdolItems.joinToString { "${it.tag}:${it.length}B" }}" }
@@ -353,25 +364,25 @@ class NfcCardReader @Inject constructor(
                                     cdolData.size.toByte()
                                 ) + cdolData + byteArrayOf(0x00.toByte())
 
-                            notifyApdu("GENERATE AC")
-                            val genAcResponse = isoDep.transceive(genAcCommand)
+                                notifyApdu("GENERATE AC")
+                                val genAcResponse = isoDep.transceive(genAcCommand)
 
-                            apduCommands.add(ApduCommand(
-                                sequence = commandSequence++,
-                                name = "GENERATE AC (ARQC)",
-                                description = "Request Application Cryptogram for transaction authorization",
-                                commandApdu = genAcCommand.toHexString(),
-                                responseApdu = genAcResponse.toHexString(),
-                                statusWord = getStatusWord(genAcResponse),
-                                statusDescription = getStatusDescription(genAcResponse)
-                            ))
+                                apduCommands.add(ApduCommand(
+                                    sequence = commandSequence++,
+                                    name = "GENERATE AC (ARQC)",
+                                    description = "Request Application Cryptogram for transaction authorization",
+                                    commandApdu = genAcCommand.toHexString(),
+                                    responseApdu = genAcResponse.toHexString(),
+                                    statusWord = getStatusWord(genAcResponse),
+                                    statusDescription = getStatusDescription(genAcResponse)
+                                ))
 
-                            if (isSuccessResponse(genAcResponse)) {
-                                allRecords.add(removeStatusWord(genAcResponse))
-                                SecureLogger.dSecure(TAG, "GENERATE AC Response: ${genAcResponse.toHexString()}")
-                            } else {
-                                SecureLogger.d(TAG) { "GENERATE AC status: ${getStatusWord(genAcResponse)}" }
-                            }
+                                if (isSuccessResponse(genAcResponse)) {
+                                    allRecords.add(removeStatusWord(genAcResponse))
+                                    SecureLogger.dSecure(TAG, "GENERATE AC Response: ${genAcResponse.toHexString()}")
+                                } else {
+                                    SecureLogger.d(TAG) { "GENERATE AC status: ${getStatusWord(genAcResponse)}" }
+                                }
                             }
                         }
                     }
