@@ -45,6 +45,7 @@ class PreferencesManager @Inject constructor(
         private const val KEY_IFD_SERIAL_NUMBER = "terminal_ifd_serial_number"
         private const val KEY_MERCHANT_CATEGORY_CODE = "terminal_mcc"
         private const val KEY_ADDITIONAL_TERMINAL_CAPABILITIES = "terminal_additional_capabilities"
+        private const val KEY_LED_COLOR_MODE = "terminal_led_color_mode"
 
         @Volatile
         private var instance: PreferencesManager? = null
@@ -89,7 +90,17 @@ class PreferencesManager @Inject constructor(
             merchantName = sharedPreferences.getString(KEY_MERCHANT_NAME, "TAP TO PAY SHOP") ?: "TAP TO PAY SHOP",
             ifdSerialNumber = sharedPreferences.getString(KEY_IFD_SERIAL_NUMBER, "12345678") ?: "12345678",
             merchantCategoryCode = sharedPreferences.getString(KEY_MERCHANT_CATEGORY_CODE, "5411") ?: "5411",
-            additionalTerminalCapabilitiesHex = sharedPreferences.getString(KEY_ADDITIONAL_TERMINAL_CAPABILITIES, "6000F0A001") ?: "6000F0A001"
+            additionalTerminalCapabilitiesHex = sharedPreferences.getString(KEY_ADDITIONAL_TERMINAL_CAPABILITIES, "6000F0A001") ?: "6000F0A001",
+            ledColorMode = try {
+                com.yumedev.taptopayandroid.domain.model.PosLedColorMode.valueOf(
+                    sharedPreferences.getString(
+                        KEY_LED_COLOR_MODE,
+                        com.yumedev.taptopayandroid.domain.model.PosLedColorMode.EMV_GREEN.name
+                    ) ?: com.yumedev.taptopayandroid.domain.model.PosLedColorMode.EMV_GREEN.name
+                )
+            } catch (e: Exception) {
+                com.yumedev.taptopayandroid.domain.model.PosLedColorMode.EMV_GREEN
+            }
         )
     }
 
@@ -107,6 +118,7 @@ class PreferencesManager @Inject constructor(
             putString(KEY_IFD_SERIAL_NUMBER, config.ifdSerialNumber)
             putString(KEY_MERCHANT_CATEGORY_CODE, config.merchantCategoryCode)
             putString(KEY_ADDITIONAL_TERMINAL_CAPABILITIES, config.additionalTerminalCapabilitiesHex)
+            putString(KEY_LED_COLOR_MODE, config.ledColorMode.name)
         }
     }
 

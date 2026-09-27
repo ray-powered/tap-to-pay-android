@@ -125,8 +125,7 @@ fun TapToPayScreen(
                 isReading = isReading,
                 isSeePhone = isSeePhone,
                 apduPulseCount = apduPulseCount,
-                ledColorMode = terminalConfig.ledColorMode,
-                onToggleMode = { viewModel.toggleLedColorMode() }
+                ledColorMode = terminalConfig.ledColorMode
             )
         }
 
@@ -242,8 +241,7 @@ fun PosPhysicalLedModule(
     isReading: Boolean,
     isSeePhone: Boolean,
     apduPulseCount: Int,
-    ledColorMode: PosLedColorMode,
-    onToggleMode: () -> Unit
+    ledColorMode: PosLedColorMode
 ) {
     val greenColor = Color(0xFF00E676)
     val blueColor = Color(0xFF2979FF)
@@ -295,8 +293,7 @@ fun PosPhysicalLedModule(
     Surface(
         shape = RoundedCornerShape(14.dp),
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-        border = BorderStroke(0.8.dp, MaterialTheme.colorScheme.outlineVariant),
-        modifier = Modifier.clickable { onToggleMode() }
+        border = BorderStroke(0.8.dp, MaterialTheme.colorScheme.outlineVariant)
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),

@@ -17,8 +17,12 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.background
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import com.yumedev.taptopayandroid.domain.model.PosLedColorMode
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Refresh
@@ -312,6 +316,25 @@ fun SettingsScreen(
                             }
                             viewModel.updateThemeMode(newThemeMode)
                             onThemeChanged(newThemeMode)
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 12.dp)
+                    )
+                }
+                HorizontalDivider(
+                    modifier = Modifier.padding(start = 56.dp),
+                    color = MaterialTheme.colorScheme.outlineVariant
+                )
+                SettingsItem(
+                    icon = Icons.Outlined.Info,
+                    title = "Contactless LED Indicator",
+                    subtitle = "POS physical LED color and sequence standard"
+                ) {
+                    PosLedModeSelector(
+                        selectedMode = terminalConfig.ledColorMode,
+                        onModeSelected = { newMode ->
+                            viewModel.updateLedColorMode(newMode)
                         },
                         modifier = Modifier
                             .fillMaxWidth()
@@ -742,6 +765,113 @@ private fun ThemeOption(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
+            }
+        }
+    }
+}
+
+@Composable
+private fun PosLedModeSelector(
+    selectedMode: PosLedColorMode,
+    onModeSelected: (PosLedColorMode) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        val isEmv = selectedMode == PosLedColorMode.EMV_GREEN
+        val isUpay = selectedMode == PosLedColorMode.UNIONPAY_COLOR
+
+        // Option 1: EMV 4-Green
+        Surface(
+            modifier = Modifier
+                .weight(1f)
+                .clickable { onModeSelected(PosLedColorMode.EMV_GREEN) },
+            shape = RoundedCornerShape(12.dp),
+            color = if (isEmv) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+            border = BorderStroke(
+                width = if (isEmv) 1.5.dp else 1.dp,
+                color = if (isEmv) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant
+            )
+        ) {
+            Column(
+                modifier = Modifier.padding(12.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                // 4 Green Dots
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    val green = Color(0xFF00E676)
+                    repeat(4) {
+                        Box(
+                            modifier = Modifier
+                                .size(9.dp)
+                                .clip(CircleShape)
+                                .background(green)
+                        )
+                    }
+                }
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        text = "EMV 4-Green",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = if (isEmv) FontWeight.Bold else FontWeight.Medium,
+                        color = if (isEmv) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = "EMV Book B Classic",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontSize = 10.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
+
+        // Option 2: UnionPay 4-Color
+        Surface(
+            modifier = Modifier
+                .weight(1f)
+                .clickable { onModeSelected(PosLedColorMode.UNIONPAY_COLOR) },
+            shape = RoundedCornerShape(12.dp),
+            color = if (isUpay) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+            border = BorderStroke(
+                width = if (isUpay) 1.5.dp else 1.dp,
+                color = if (isUpay) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant
+            )
+        ) {
+            Column(
+                modifier = Modifier.padding(12.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                // 4 Color Dots (Blue, Yellow, Green, Red)
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    val colors = listOf(Color(0xFF2979FF), Color(0xFFFFB300), Color(0xFF00E676), Color(0xFFE53935))
+                    colors.forEach { dotColor ->
+                        Box(
+                            modifier = Modifier
+                                .size(9.dp)
+                                .clip(CircleShape)
+                                .background(dotColor)
+                        )
+                    }
+                }
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        text = "UnionPay 4-Color",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = if (isUpay) FontWeight.Bold else FontWeight.Medium,
+                        color = if (isUpay) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = "PBOC / China UnionPay",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontSize = 10.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
         }
     }

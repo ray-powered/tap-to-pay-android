@@ -113,4 +113,9 @@ class SettingsViewModel @Inject constructor(
         )
         updateTerminalConfig(updated)
     }
+
+    fun updateLedColorMode(mode: com.yumedev.taptopayandroid.domain.model.PosLedColorMode) {
+        val updated = _terminalConfig.value.copy(ledColorMode = mode)
+        updateTerminalConfig(updated)
+    }
 }
