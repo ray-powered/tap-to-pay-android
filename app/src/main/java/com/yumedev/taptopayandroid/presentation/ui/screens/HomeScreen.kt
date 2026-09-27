@@ -37,6 +37,7 @@ import com.yumedev.taptopayandroid.presentation.ui.components.Keypad
 import com.yumedev.taptopayandroid.presentation.ui.components.PrimaryButton
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.runtime.collectAsState
