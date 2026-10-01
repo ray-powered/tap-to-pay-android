@@ -180,6 +180,7 @@ class TapToPayViewModel @Inject constructor(
 
     fun startNewTransaction(amount: String) {
         _nfcState.value = NfcState.Waiting
+        _lastEmvCardData.value = null
         _currentApduCommand.value = null
         _apduPulseCount.value = 0
         _liveApduLogs.value = emptyList()

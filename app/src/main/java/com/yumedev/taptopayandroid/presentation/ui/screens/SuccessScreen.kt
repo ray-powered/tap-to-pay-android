@@ -655,7 +655,7 @@ fun SuccessScreen(
 // ─── Contactless 4-LED Indicator: EMV Green & UnionPay 4-Color ───
 
 @Composable
-private fun PosAnimatedLedIndicator(
+internal fun PosAnimatedLedIndicator(
     isDeclined: Boolean,
     ledColorMode: PosLedColorMode = PosLedColorMode.EMV_GREEN
 ) {
@@ -759,7 +759,7 @@ private fun PosAnimatedLedIndicator(
 }
 
 @Composable
-private fun PosReceiptRow(
+internal fun PosReceiptRow(
     label: String,
     value: String,
     isBold: Boolean = false,

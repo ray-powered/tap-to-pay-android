@@ -153,11 +153,31 @@ fun NavGraph(
         ) { backStackEntry ->
             val amount = backStackEntry.arguments?.getString("amount") ?: "$0.00"
             val errorMessage = backStackEntry.arguments?.getString("errorMessage") ?: "Unknown error"
+            val emvCardData by sharedViewModel.lastEmvCardData.collectAsState()
+            val terminalConfig by sharedViewModel.terminalConfig.collectAsState()
 
             ErrorScreen(
                 amount = amount,
                 errorMessage = errorMessage,
                 innerPadding = innerPadding,
+                emvCardData = emvCardData,
+                terminalConfig = terminalConfig,
+                onTryAgain = {
+                    navController.navigate(NavigationRoutes.TapToPay.createRoute(amount)) {
+                        popUpTo(NavigationRoutes.Error.route) {
+                            inclusive = true
+                        }
+                    }
+                },
+                onNavigateToDetails = if (emvCardData != null) {
+                    {
+                        navController.navigate(NavigationRoutes.CardDetail.route) {
+                            popUpTo(NavigationRoutes.Home.route) {
+                                inclusive = false
+                            }
+                        }
+                    }
+                } else null,
                 onNavigateToHome = {
                     // Navigate back to home
                     navController.popBackStack(NavigationRoutes.Home.route, inclusive = false)
