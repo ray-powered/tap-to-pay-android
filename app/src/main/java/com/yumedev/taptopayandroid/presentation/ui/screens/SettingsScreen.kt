@@ -99,6 +99,7 @@ fun SettingsScreen(
     var showMerchantDialog by remember { mutableStateOf(false) }
     var showTvrDialog by remember { mutableStateOf(false) }
     var showGenAcDialog by remember { mutableStateOf(false) }
+    var showBrandExperienceDialog by remember { mutableStateOf(false) }
 
     val selectedTheme = when (themeMode) {
         PreferencesManager.THEME_LIGHT -> ThemeOption.LIGHT
@@ -211,6 +212,17 @@ fun SettingsScreen(
             onConfirm = { newMode ->
                 viewModel.updateGenAcMode(newMode)
                 showGenAcDialog = false
+            }
+        )
+    }
+
+    if (showBrandExperienceDialog) {
+        com.yumedev.taptopayandroid.presentation.ui.components.BrandSuccessExperienceDialog(
+            currentTheme = terminalConfig.brandSuccessTheme,
+            onDismiss = { showBrandExperienceDialog = false },
+            onConfirm = { newTheme ->
+                viewModel.updateBrandSuccessTheme(newTheme)
+                showBrandExperienceDialog = false
             }
         )
     }
@@ -328,6 +340,17 @@ fun SettingsScreen(
                     subtitle = "Show 'Online Authorization Required' instead of 'Approved Online' when ARQC is returned",
                     checked = terminalConfig.strictOnlineAuthDisplay,
                     onCheckedChange = { viewModel.updateStrictOnlineAuthDisplay(it) }
+                )
+                HorizontalDivider(
+                    modifier = Modifier.padding(start = 56.dp),
+                    color = MaterialTheme.colorScheme.outlineVariant
+                )
+                SettingsItemNavigable(
+                    icon = Icons.Outlined.BrightnessAuto,
+                    title = "Brand Success Experience",
+                    subtitle = terminalConfig.brandSuccessTheme.displayName,
+                    endText = "Select",
+                    onClick = { showBrandExperienceDialog = true }
                 )
                 HorizontalDivider(
                     modifier = Modifier.padding(start = 56.dp),

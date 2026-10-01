@@ -56,4 +56,10 @@ class AudioRepositoryImplTest {
         verify(exactly = 2) { soundManager.playSuccess() }
         verify(exactly = 3) { soundManager.playFailed() }
     }
+
+    @Test
+    fun `playSuccess with brandTheme delegates to SoundManager playSuccess with brandTheme`() {
+        repository.playSuccess(com.yumedev.taptopayandroid.domain.model.BrandSuccessTheme.MASTERCARD)
+        verify(exactly = 1) { soundManager.playSuccess(com.yumedev.taptopayandroid.domain.model.BrandSuccessTheme.MASTERCARD) }
+    }
 }

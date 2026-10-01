@@ -163,4 +163,9 @@ class SettingsViewModel @Inject constructor(
         val updated = _terminalConfig.value.copy(strictOnlineAuthDisplay = strict)
         updateTerminalConfig(updated)
     }
+
+    fun updateBrandSuccessTheme(theme: com.yumedev.taptopayandroid.domain.model.BrandSuccessTheme) {
+        val updated = _terminalConfig.value.copy(brandSuccessTheme = theme)
+        updateTerminalConfig(updated)
+    }
 }

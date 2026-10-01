@@ -18,8 +18,17 @@ class SoundManager @Inject constructor(
     private var mediaPlayer: MediaPlayer? = null
 
     fun playSuccess() {
+        playSuccess(com.yumedev.taptopayandroid.domain.model.BrandSuccessTheme.STANDARD)
+    }
+
+    fun playSuccess(brandTheme: com.yumedev.taptopayandroid.domain.model.BrandSuccessTheme) {
         if (preferencesManager.isSoundEnabled) {
-            playSound(R.raw.success, "success")
+            val soundRes = when (brandTheme) {
+                com.yumedev.taptopayandroid.domain.model.BrandSuccessTheme.MASTERCARD -> R.raw.mastercard_sonic
+                com.yumedev.taptopayandroid.domain.model.BrandSuccessTheme.VISA -> R.raw.visa_sensory
+                else -> R.raw.success
+            }
+            playSound(soundRes, brandTheme.name.lowercase())
         }
     }
 
