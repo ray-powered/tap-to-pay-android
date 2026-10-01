@@ -32,11 +32,4 @@ class PlaySuccessSoundUseCaseTest {
 
         verify(exactly = 3) { audioRepository.playSuccess() }
     }
-
-    @Test
-    fun `invoke with brandTheme delegates to repository with brandTheme`() {
-        useCase(com.yumedev.taptopayandroid.domain.model.BrandSuccessTheme.MASTERCARD)
-
-        verify(exactly = 1) { audioRepository.playSuccess(com.yumedev.taptopayandroid.domain.model.BrandSuccessTheme.MASTERCARD) }
-    }
 }

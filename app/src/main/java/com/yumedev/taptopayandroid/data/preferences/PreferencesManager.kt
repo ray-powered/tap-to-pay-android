@@ -51,7 +51,6 @@ class PreferencesManager @Inject constructor(
         private const val KEY_MANUAL_TVR = "terminal_manual_tvr"
         private const val KEY_GEN_AC_MODE = "terminal_gen_ac_mode"
         private const val KEY_STRICT_ONLINE_AUTH_DISPLAY = "terminal_strict_online_auth_display"
-        private const val KEY_BRAND_SUCCESS_THEME = "terminal_brand_success_theme"
 
         @Volatile
         private var instance: PreferencesManager? = null
@@ -127,17 +126,7 @@ class PreferencesManager @Inject constructor(
             } catch (e: Exception) {
                 com.yumedev.taptopayandroid.domain.model.GenAcRequestMode.AUTO_TAA
             },
-            strictOnlineAuthDisplay = sharedPreferences.getBoolean(KEY_STRICT_ONLINE_AUTH_DISPLAY, false),
-            brandSuccessTheme = try {
-                com.yumedev.taptopayandroid.domain.model.BrandSuccessTheme.valueOf(
-                    sharedPreferences.getString(
-                        KEY_BRAND_SUCCESS_THEME,
-                        com.yumedev.taptopayandroid.domain.model.BrandSuccessTheme.AUTO.name
-                    ) ?: com.yumedev.taptopayandroid.domain.model.BrandSuccessTheme.AUTO.name
-                )
-            } catch (e: Exception) {
-                com.yumedev.taptopayandroid.domain.model.BrandSuccessTheme.AUTO
-            }
+            strictOnlineAuthDisplay = sharedPreferences.getBoolean(KEY_STRICT_ONLINE_AUTH_DISPLAY, false)
         )
     }
 
@@ -161,7 +150,6 @@ class PreferencesManager @Inject constructor(
             putString(KEY_MANUAL_TVR, config.manualTvrHex)
             putString(KEY_GEN_AC_MODE, config.genAcRequestMode.name)
             putBoolean(KEY_STRICT_ONLINE_AUTH_DISPLAY, config.strictOnlineAuthDisplay)
-            putString(KEY_BRAND_SUCCESS_THEME, config.brandSuccessTheme.name)
         }
     }
 

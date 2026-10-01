@@ -146,8 +146,7 @@ class TapToPayViewModel @Inject constructor(
                             NfcState.Error("Card declined transaction: ${emvCardData.transactionAnalysis.decisionTitle}")
                         }
                         isOnlineAuth || isApproved -> {
-                            val effectiveBrandTheme = currentConfig.resolveEffectiveBrandTheme(emvCardData.cardType)
-                            playSuccessSoundUseCase(effectiveBrandTheme)
+                            playSuccessSoundUseCase()
                             NfcState.Success(emvCardData)
                         }
                         else -> {

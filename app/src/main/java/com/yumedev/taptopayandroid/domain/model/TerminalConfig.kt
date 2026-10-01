@@ -35,29 +35,6 @@ enum class GenAcRequestMode(val displayName: String, val description: String) {
     )
 }
 
-enum class BrandSuccessTheme(val displayName: String, val description: String) {
-    AUTO(
-        "Auto (Card Brand Detected)",
-        "Automatically displays brand animation and plays sonic melody based on card brand"
-    ),
-    MASTERCARD(
-        "Mastercard Sonic Brand",
-        "Forces official Mastercard 2019 sensory animation & 6-note sonic acceptance chime"
-    ),
-    VISA(
-        "Visa Sensory Experience",
-        "Forces Visa sensory branding animation & dynamic checkmark chime"
-    ),
-    AMEX(
-        "American Express Experience",
-        "Forces American Express Centurion styling & chime"
-    ),
-    STANDARD(
-        "Standard POS Terminal",
-        "Classic EMV contactless terminal checkmark and tone"
-    )
-}
-
 /**
  * Configuration for POS Terminal and EMV transaction attributes.
  * Allows customizing currency, country, transaction type, TTQ, terminal capabilities,
@@ -116,26 +93,8 @@ data class TerminalConfig(
     val genAcRequestMode: GenAcRequestMode = GenAcRequestMode.AUTO_TAA,
 
     // Strict Online Authorization Display (If false, ARQC displays friendly "Approved Online"; if true, displays "Online Authorization Required")
-    val strictOnlineAuthDisplay: Boolean = false,
-
-    // Brand Success Experience & Sensory Branding (Mastercard Sonic, Visa Sensory, etc.)
-    val brandSuccessTheme: BrandSuccessTheme = BrandSuccessTheme.AUTO
+    val strictOnlineAuthDisplay: Boolean = false
 ) {
-
-    /**
-     * Resolves the actual brand success theme to display based on the card type and user settings.
-     */
-    fun resolveEffectiveBrandTheme(cardType: CardType): BrandSuccessTheme {
-        return when (brandSuccessTheme) {
-            BrandSuccessTheme.AUTO -> when (cardType) {
-                CardType.MASTERCARD -> BrandSuccessTheme.MASTERCARD
-                CardType.VISA -> BrandSuccessTheme.VISA
-                CardType.AMEX -> BrandSuccessTheme.AMEX
-                else -> BrandSuccessTheme.STANDARD
-            }
-            else -> brandSuccessTheme
-        }
-    }
 
     // --- TTQ Bitwise Accessors (EMV Book B / VCPS Tag 9F66) ---
     // Byte 1 (Index 0):

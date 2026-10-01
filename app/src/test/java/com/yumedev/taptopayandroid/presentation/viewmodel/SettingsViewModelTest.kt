@@ -356,13 +356,4 @@ class SettingsViewModelTest {
         viewModel.updateStrictOnlineAuthDisplay(true)
         assertThat(viewModel.terminalConfig.value.strictOnlineAuthDisplay).isTrue()
     }
-
-    @Test
-    fun `updateBrandSuccessTheme updates brand success theme in terminal config`() {
-        viewModel.updateBrandSuccessTheme(com.yumedev.taptopayandroid.domain.model.BrandSuccessTheme.MASTERCARD)
-        assertThat(viewModel.terminalConfig.value.brandSuccessTheme).isEqualTo(com.yumedev.taptopayandroid.domain.model.BrandSuccessTheme.MASTERCARD)
-
-        viewModel.updateBrandSuccessTheme(com.yumedev.taptopayandroid.domain.model.BrandSuccessTheme.VISA)
-        assertThat(viewModel.terminalConfig.value.brandSuccessTheme).isEqualTo(com.yumedev.taptopayandroid.domain.model.BrandSuccessTheme.VISA)
-    }
 }
