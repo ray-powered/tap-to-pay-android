@@ -988,7 +988,7 @@ fun MastercardSonicBrandAnimation(
                         .graphicsLayer {
                             scaleX = ripple3Scale.value
                             scaleY = ripple3Scale.value
-                            alpha = ripple3Alpha.value
+                            this.alpha = ripple3Alpha.value
                         }
                         .clip(CircleShape)
                         .background(Color(0xFFF79E1B).copy(alpha = 0.35f))
@@ -1002,7 +1002,7 @@ fun MastercardSonicBrandAnimation(
                         .graphicsLayer {
                             scaleX = ripple2Scale.value
                             scaleY = ripple2Scale.value
-                            alpha = ripple2Alpha.value
+                            this.alpha = ripple2Alpha.value
                         }
                         .clip(CircleShape)
                         .background(Color(0xFFFF5F00).copy(alpha = 0.45f))
@@ -1016,7 +1016,7 @@ fun MastercardSonicBrandAnimation(
                         .graphicsLayer {
                             scaleX = ripple1Scale.value
                             scaleY = ripple1Scale.value
-                            alpha = ripple1Alpha.value
+                            this.alpha = ripple1Alpha.value
                         }
                         .clip(CircleShape)
                         .background(Color(0xFFEB001B).copy(alpha = 0.55f))
@@ -1028,7 +1028,7 @@ fun MastercardSonicBrandAnimation(
                 modifier = Modifier
                     .size(width = 90.dp, height = 50.dp)
                     .graphicsLayer {
-                        alpha = circleAlpha.value
+                        this.alpha = circleAlpha.value
                         scaleX = circleScale.value
                         scaleY = circleScale.value
                     }
@@ -1071,7 +1071,7 @@ fun MastercardSonicBrandAnimation(
                         .graphicsLayer {
                             scaleX = checkmarkScale.value
                             scaleY = checkmarkScale.value
-                            alpha = checkmarkAlpha.value
+                            this.alpha = checkmarkAlpha.value
                         }
                 )
             }
@@ -1135,7 +1135,7 @@ fun VisaSensoryAnimation(
                         .graphicsLayer {
                             scaleX = waveScale.value
                             scaleY = waveScale.value
-                            alpha = waveAlpha.value
+                            this.alpha = waveAlpha.value
                         }
                         .clip(CircleShape)
                         .background(Color(0xFFF7B600).copy(alpha = 0.45f))
@@ -1150,7 +1150,7 @@ fun VisaSensoryAnimation(
                     .graphicsLayer {
                         scaleX = checkmarkScale.value
                         scaleY = checkmarkScale.value
-                        alpha = checkmarkAlpha.value
+                        this.alpha = checkmarkAlpha.value
                     },
                 contentAlignment = Alignment.Center
             ) {
@@ -1183,15 +1183,15 @@ fun VisaSensoryAnimation(
 fun AmexSensoryAnimation(
     modifier: Modifier = Modifier
 ) {
-    val scale = remember { Animatable(0.2f) }
-    val alpha = remember { Animatable(0f) }
+    val cardScale = remember { Animatable(0.2f) }
+    val cardAlpha = remember { Animatable(0f) }
     val ringScale = remember { Animatable(0.7f) }
     val ringAlpha = remember { Animatable(0f) }
 
     LaunchedEffect(Unit) {
-        launch { alpha.animateTo(1f, tween(180)) }
+        launch { cardAlpha.animateTo(1f, tween(180)) }
         launch {
-            scale.animateTo(
+            cardScale.animateTo(
                 1f,
                 spring(
                     dampingRatio = Spring.DampingRatioMediumBouncy,
@@ -1221,7 +1221,7 @@ fun AmexSensoryAnimation(
                         .graphicsLayer {
                             scaleX = ringScale.value
                             scaleY = ringScale.value
-                            alpha = ringAlpha.value
+                            this.alpha = ringAlpha.value
                         }
                         .clip(RoundedCornerShape(8.dp))
                         .background(Color(0xFF81D4FA).copy(alpha = 0.4f))
@@ -1232,9 +1232,9 @@ fun AmexSensoryAnimation(
                 modifier = Modifier
                     .size(width = 54.dp, height = 40.dp)
                     .graphicsLayer {
-                        scaleX = scale.value
-                        scaleY = scale.value
-                        alpha = alpha.value
+                        scaleX = cardScale.value
+                        scaleY = cardScale.value
+                        this.alpha = cardAlpha.value
                     },
                 shape = RoundedCornerShape(8.dp),
                 color = Color(0xFF002663),
