@@ -2,10 +2,7 @@ package com.yumedev.taptopayandroid.presentation.ui.components
 
 import android.view.SoundEffectConstants
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
@@ -13,11 +10,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontFamily
@@ -94,15 +90,20 @@ fun PosHardwareKey(
     val view = LocalView.current
     val isClear = label == "C"
     val isDelete = label == "⌫"
+    val isDark = MaterialTheme.colorScheme.surface.luminance() < 0.5f
 
-    // POS keycap colors
+    // POS keycap colors:
+    // In light mode, maintain clean uniform surface keys without tinted patches or contrasting borders.
+    // In dark mode, provide subtle POS hardware accent keycaps for Clear and Delete.
     val keyBg = when {
+        !isDark -> MaterialTheme.colorScheme.surface
         isClear -> MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.35f)
         isDelete -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
         else -> MaterialTheme.colorScheme.surface
     }
 
     val keyBorderColor = when {
+        !isDark -> MaterialTheme.colorScheme.outlineVariant
         isClear -> MaterialTheme.colorScheme.error.copy(alpha = 0.4f)
         else -> MaterialTheme.colorScheme.outlineVariant
     }
