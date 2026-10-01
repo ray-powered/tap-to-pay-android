@@ -339,9 +339,16 @@ class SettingsViewModelTest {
     }
 
     @Test
-    fun `updateGenAcMode updates GenAC mode`() {
+    fun `updateGenAcMode updates GenAC mode and synchronizes TTQ`() {
         viewModel.updateGenAcMode(GenAcRequestMode.FORCE_ARQC)
         assertThat(viewModel.terminalConfig.value.genAcRequestMode).isEqualTo(GenAcRequestMode.FORCE_ARQC)
+        assertThat(viewModel.terminalConfig.value.ttqOnlineCryptogramRequired).isTrue()
+        assertThat(viewModel.terminalConfig.value.ttqReaderOfflineOnly).isFalse()
+
+        viewModel.updateGenAcMode(GenAcRequestMode.FORCE_TC)
+        assertThat(viewModel.terminalConfig.value.genAcRequestMode).isEqualTo(GenAcRequestMode.FORCE_TC)
+        assertThat(viewModel.terminalConfig.value.ttqReaderOfflineOnly).isTrue()
+        assertThat(viewModel.terminalConfig.value.ttqOnlineCryptogramRequired).isFalse()
     }
 
     @Test

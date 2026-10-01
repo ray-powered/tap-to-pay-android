@@ -22,15 +22,15 @@ enum class GenAcRequestMode(val displayName: String, val description: String) {
         "Dynamically requests TC or ARQC based on floor limit, TVR, and terminal profile"
     ),
     FORCE_ARQC(
-        "Force ARQC (0x80 / 0x90)",
+        "Force ARQC (0x80)",
         "Always request Authorisation Request Cryptogram for online authorization"
     ),
     FORCE_TC(
-        "Force TC (0x40 / 0x50)",
+        "Force TC (0x40)",
         "Always request Transaction Certificate for offline authorization"
     ),
     FORCE_AAC(
-        "Force AAC (0x00 / 0x10)",
+        "Force AAC (0x00)",
         "Always request Application Authentication Cryptogram (Decline)"
     )
 }
@@ -227,7 +227,28 @@ data class TerminalConfig(
     val capCdaSupported: Boolean get() = capCda
 
     val capOfflineOnly: Boolean
-        get() = terminalTypeHex in listOf("21", "23", "11", "24") || ttqReaderOfflineOnly
+        get() = terminalTypeHex in listOf("21", "23", "11", "24") || ttqReaderOfflineOnly || genAcRequestMode == GenAcRequestMode.FORCE_TC
+
+    val effectiveTtqHex: String
+        get() = when (genAcRequestMode) {
+            GenAcRequestMode.FORCE_TC -> {
+                // In forced offline mode: Reader is offline only (Byte 1 Bit 4 = 1),
+                // Online cryptogram NOT required (Byte 2 Bit 8 = 0)
+                withTtqBit(0, 0x08, true).withTtqBit(1, 0x80, false).ttqHex
+            }
+            GenAcRequestMode.FORCE_ARQC -> {
+                // In forced online mode: Reader is NOT offline only (Byte 1 Bit 4 = 0),
+                // Online cryptogram required (Byte 2 Bit 8 = 1)
+                withTtqBit(0, 0x08, false).withTtqBit(1, 0x80, true).ttqHex
+            }
+            else -> ttqHex
+        }
+
+    val effectiveTerminalTypeHex: String
+        get() = when (genAcRequestMode) {
+            GenAcRequestMode.FORCE_TC -> if (terminalTypeHex == "22") "23" else terminalTypeHex
+            else -> terminalTypeHex
+        }
 
     // --- TVR Accessors and Mutators (Tag 95 - 5 bytes) ---
     fun getManualTvrBytes(): ByteArray {

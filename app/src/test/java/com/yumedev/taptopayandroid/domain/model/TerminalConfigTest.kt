@@ -134,4 +134,28 @@ class TerminalConfigTest {
         val bytes = config.getManualTvrBytes()
         assertThat(bytes).isEqualTo(byteArrayOf(0x00, 0x00, 0x00, 0x80.toByte(), 0x00))
     }
+
+    @Test
+    fun `effectiveTtqHex and effectiveTerminalTypeHex dynamically adapt for FORCE_TC and FORCE_ARQC`() {
+        val defaultConfig = TerminalConfig(ttqHex = "76204000", terminalTypeHex = "22")
+
+        // 1. In AUTO_TAA mode: effective matches configured
+        assertThat(defaultConfig.effectiveTtqHex).isEqualTo("76204000")
+        assertThat(defaultConfig.effectiveTerminalTypeHex).isEqualTo("22")
+        assertThat(defaultConfig.capOfflineOnly).isFalse()
+
+        // 2. In FORCE_TC mode: Byte 0 Bit 4 (0x08, Reader offline only) is set to 1,
+        // Byte 1 Bit 8 (0x80, Online cryptogram required) is cleared to 0.
+        // 76 | 08 = 7E. 20 & ~80 = 20. Result: 7E204000
+        val forceTcConfig = defaultConfig.copy(genAcRequestMode = GenAcRequestMode.FORCE_TC)
+        assertThat(forceTcConfig.effectiveTtqHex).isEqualTo("7E204000")
+        assertThat(forceTcConfig.effectiveTerminalTypeHex).isEqualTo("23")
+        assertThat(forceTcConfig.capOfflineOnly).isTrue()
+
+        // 3. In FORCE_ARQC mode: Byte 0 Bit 4 is 0, Byte 1 Bit 8 is set to 1.
+        // 76 & ~08 = 76. 20 | 80 = A0. Result: 76A04000
+        val forceArqcConfig = defaultConfig.copy(genAcRequestMode = GenAcRequestMode.FORCE_ARQC)
+        assertThat(forceArqcConfig.effectiveTtqHex).isEqualTo("76A04000")
+        assertThat(forceArqcConfig.effectiveTerminalTypeHex).isEqualTo("22")
+    }
 }

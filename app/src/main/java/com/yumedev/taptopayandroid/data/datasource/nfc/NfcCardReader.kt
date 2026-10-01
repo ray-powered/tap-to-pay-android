@@ -362,9 +362,6 @@ class NfcCardReader @Inject constructor(
                                 allRecords.add(byteArrayOf(0x95.toByte(), 0x05.toByte()) + tvr)
                                 allRecords.add(byteArrayOf(0x9B.toByte(), 0x02.toByte()) + tsi)
 
-                                val aipByte1 = if (aipBytes != null && aipBytes.isNotEmpty()) aipBytes[0].toInt() and 0xFF else 0
-                                val cdaRequested = (aipByte1 and 0x01) != 0 && config.capCdaSupported
-
                                 val requestedCryptoType = when (config.genAcRequestMode) {
                                     GenAcRequestMode.FORCE_ARQC -> 0x80
                                     GenAcRequestMode.FORCE_TC -> 0x40
@@ -388,15 +385,18 @@ class NfcCardReader @Inject constructor(
                                     }
                                 }
 
-                                val p1Byte = (requestedCryptoType or (if (cdaRequested) 0x10 else 0x00)).toByte()
+                                // In Contactless EMV (Mastercard PayPass M/Chip, UnionPay qPBOC), P1 does not use CDA (0x10)
+                                // as contactless cards reject 0x50/0x90 with 6A 86 (Incorrect P1-P2 parameters).
+                                // Standard Contactless GENERATE AC uses pure cryptogram request byte: 0x40 (TC), 0x80 (ARQC), 0x00 (AAC).
+                                val p1Byte = requestedCryptoType.toByte()
                                 val cryptoLabel = when (requestedCryptoType) {
                                     0x80 -> "ARQC"
                                     0x40 -> "TC"
                                     else -> "AAC"
-                                } + if (cdaRequested) "+CDA" else ""
+                                }
 
                                 // CLA: 80, INS: AE (GENERATE AC), P1: p1Byte, P2: 00
-                                val genAcCommand = byteArrayOf(
+                                var genAcCommand = byteArrayOf(
                                     0x80.toByte(),
                                     0xAE.toByte(),
                                     p1Byte,
@@ -405,11 +405,34 @@ class NfcCardReader @Inject constructor(
                                 ) + cdolData + byteArrayOf(0x00.toByte())
 
                                 notifyApdu("GENERATE AC ($cryptoLabel)")
-                                val genAcResponse = try {
+                                var genAcResponse = try {
                                     isoDep.transceive(genAcCommand)
                                 } catch (e: IOException) {
                                     Log.e(TAG, "Card removed or RF connection lost during GENERATE AC", e)
                                     throw IOException("Card removed before completing transaction (GENERATE AC aborted)", e)
+                                }
+
+                                // Handle ISO 7816-4 status words:
+                                // 1) 6C XX (Wrong length Le: reissue with Le = XX)
+                                if (genAcResponse.size >= 2 && (genAcResponse[genAcResponse.size - 2].toInt() and 0xFF) == 0x6C) {
+                                    val exactLe = genAcResponse[genAcResponse.size - 1]
+                                    genAcCommand = genAcCommand.copyOfRange(0, genAcCommand.size - 1) + byteArrayOf(exactLe)
+                                    try {
+                                        genAcResponse = isoDep.transceive(genAcCommand)
+                                    } catch (e: IOException) {
+                                        throw IOException("Card removed during GENERATE AC retry", e)
+                                    }
+                                }
+                                // 2) 67 00 (Wrong length: some cards require command without trailing Le byte)
+                                else if (genAcResponse.size >= 2 &&
+                                    (genAcResponse[genAcResponse.size - 2].toInt() and 0xFF) == 0x67 &&
+                                    (genAcResponse[genAcResponse.size - 1].toInt() and 0xFF) == 0x00) {
+                                    genAcCommand = genAcCommand.copyOfRange(0, genAcCommand.size - 1)
+                                    try {
+                                        genAcResponse = isoDep.transceive(genAcCommand)
+                                    } catch (e: IOException) {
+                                        throw IOException("Card removed during GENERATE AC retry without Le", e)
+                                    }
                                 }
 
                                 apduCommands.add(ApduCommand(
@@ -544,7 +567,7 @@ class NfcCardReader @Inject constructor(
 
             val value = when (item.tag) {
                 // 9F66: Terminal Transaction Qualifiers (TTQ - 4 bytes)
-                "9F66" -> parseHexBytes(terminalConfig.ttqHex, safeLength, byteArrayOf(0x76.toByte(), 0x20.toByte(), 0x40.toByte(), 0x00.toByte()))
+                "9F66" -> parseHexBytes(terminalConfig.effectiveTtqHex, safeLength, byteArrayOf(0x76.toByte(), 0x20.toByte(), 0x40.toByte(), 0x00.toByte()))
 
                 // 9F02: Amount, Authorised (Numeric - 6 bytes BCD)
                 "9F02" -> formatBcdAmount(amountCents ?: 0L, safeLength)
@@ -577,7 +600,7 @@ class NfcCardReader @Inject constructor(
                 "9F37" -> ByteArray(safeLength).also { SecureRandom().nextBytes(it) }
 
                 // 9F35: Terminal Type (1 byte - 22 = Attended Online Merchant Terminal)
-                "9F35" -> parseHexBytes(terminalConfig.terminalTypeHex, safeLength, byteArrayOf(0x22.toByte()))
+                "9F35" -> parseHexBytes(terminalConfig.effectiveTerminalTypeHex, safeLength, byteArrayOf(0x22.toByte()))
 
                 // 9F33: Terminal Capabilities (3 bytes - E0 F8 C8: IC, Magstripe, PIN, Signature, DDA, CDA)
                 "9F33" -> parseHexBytes(terminalConfig.terminalCapabilitiesHex, safeLength, byteArrayOf(0xE0.toByte(), 0xF8.toByte(), 0xC8.toByte()))
@@ -658,14 +681,19 @@ class NfcCardReader @Inject constructor(
         // Bit 8 (0x80): Offline data authentication was not performed
         val aipByte1 = if (aip != null && aip.isNotEmpty()) aip[0].toInt() and 0xFF else 0
         val cardOdaSupported = (aipByte1 and 0x61) != 0 // SDA (0x40), DDA (0x20), CDA (0x01)
-        if (!cardOdaSupported) {
+        if (!cardOdaSupported && terminalConfig.genAcRequestMode != GenAcRequestMode.FORCE_TC) {
             tvr[0] = (tvr[0].toInt() or 0x80).toByte()
         }
 
         // Byte 4:
         // Bit 8 (0x80): Transaction exceeds floor limit
-        if (amt > terminalConfig.floorLimit) {
-            tvr[3] = (tvr[3].toInt() or 0x80).toByte()
+        // Bit 4 (0x08): Merchant forced transaction online
+        if (terminalConfig.genAcRequestMode == GenAcRequestMode.FORCE_ARQC) {
+            tvr[3] = (tvr[3].toInt() or 0x08).toByte() // Merchant forced online
+        } else if (terminalConfig.genAcRequestMode != GenAcRequestMode.FORCE_TC) {
+            if (amt > terminalConfig.floorLimit) {
+                tvr[3] = (tvr[3].toInt() or 0x80).toByte()
+            }
         }
 
         return tvr

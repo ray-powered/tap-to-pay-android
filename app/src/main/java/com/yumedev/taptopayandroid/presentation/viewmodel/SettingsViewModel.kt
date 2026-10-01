@@ -140,7 +140,22 @@ class SettingsViewModel @Inject constructor(
     }
 
     fun updateGenAcMode(mode: com.yumedev.taptopayandroid.domain.model.GenAcRequestMode) {
-        val updated = _terminalConfig.value.copy(genAcRequestMode = mode)
+        val current = _terminalConfig.value
+        val updated = when (mode) {
+            com.yumedev.taptopayandroid.domain.model.GenAcRequestMode.FORCE_TC -> {
+                current.copy(
+                    genAcRequestMode = mode,
+                    ttqHex = current.withTtqBit(0, 0x08, true).withTtqBit(1, 0x80, false).ttqHex
+                )
+            }
+            com.yumedev.taptopayandroid.domain.model.GenAcRequestMode.FORCE_ARQC -> {
+                current.copy(
+                    genAcRequestMode = mode,
+                    ttqHex = current.withTtqBit(0, 0x08, false).withTtqBit(1, 0x80, true).ttqHex
+                )
+            }
+            else -> current.copy(genAcRequestMode = mode)
+        }
         updateTerminalConfig(updated)
     }
 

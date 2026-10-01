@@ -274,4 +274,58 @@ class NfcCardReaderTest {
         // Tag 9F1B (4 bytes binary): 10000 = 0x00002710
         assertThat(data.copyOfRange(7, 11)).isEqualTo(byteArrayOf(0x00, 0x00, 0x27, 0x10))
     }
+
+    @Test
+    fun `calculateTvr under FORCE_TC suppresses floor limit exceeded and missing ODA to allow offline TC`() {
+        val forceTcConfig = TerminalConfig(
+            tvrMode = TvrMode.AUTOMATIC,
+            floorLimit = 5000L, // $50.00
+            genAcRequestMode = com.yumedev.taptopayandroid.domain.model.GenAcRequestMode.FORCE_TC
+        )
+        val aipNoOda = byteArrayOf(0x00.toByte(), 0x00.toByte())
+
+        // Even with amount > floorLimit and no ODA supported, FORCE_TC ensures TVR is clean (0000000000)
+        // so that Card Action Analysis (CAA) does not trigger IAC-Online
+        val tvr = reader.calculateTvr(amountCents = 15000L, aip = aipNoOda, terminalConfig = forceTcConfig)
+        assertThat(tvr).isEqualTo(byteArrayOf(0x00, 0x00, 0x00, 0x00, 0x00))
+    }
+
+    @Test
+    fun `calculateTvr under FORCE_ARQC sets Merchant forced transaction online bit`() {
+        val forceArqcConfig = TerminalConfig(
+            tvrMode = TvrMode.AUTOMATIC,
+            floorLimit = 10000L,
+            genAcRequestMode = com.yumedev.taptopayandroid.domain.model.GenAcRequestMode.FORCE_ARQC
+        )
+        val aipWithOda = byteArrayOf(0x40.toByte(), 0x00.toByte())
+
+        // Byte 4 Bit 4 (0x08) is set for Merchant forced transaction online
+        val tvr = reader.calculateTvr(amountCents = 1000L, aip = aipWithOda, terminalConfig = forceArqcConfig)
+        assertThat(tvr).isEqualTo(byteArrayOf(0x00, 0x00, 0x00, 0x08.toByte(), 0x00))
+    }
+
+    @Test
+    fun `buildDolData under FORCE_TC encodes offline TTQ and terminal type 23`() {
+        val dolItems = listOf(
+            NfcCardReader.DolItem("9F66", 4), // TTQ
+            NfcCardReader.DolItem("9F35", 1)  // Terminal Type
+        )
+        val forceTcConfig = TerminalConfig(
+            ttqHex = "76204000",
+            terminalTypeHex = "22",
+            genAcRequestMode = com.yumedev.taptopayandroid.domain.model.GenAcRequestMode.FORCE_TC
+        )
+
+        val data = reader.buildDolData(dolItems, amountCents = 1000L, terminalConfig = forceTcConfig)
+        assertThat(data).hasLength(5)
+
+        // 9F66 TTQ: 76 | 08 = 7E (Reader offline only bit set), 20 (Online cryptogram cleared)
+        assertThat(data[0]).isEqualTo(0x7E.toByte())
+        assertThat(data[1]).isEqualTo(0x20.toByte())
+        assertThat(data[2]).isEqualTo(0x40.toByte())
+        assertThat(data[3]).isEqualTo(0x00.toByte())
+
+        // 9F35 Terminal Type: 23 (Attended Offline Only)
+        assertThat(data[4]).isEqualTo(0x23.toByte())
+    }
 }
