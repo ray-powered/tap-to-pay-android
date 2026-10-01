@@ -24,6 +24,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.yumedev.taptopayandroid.domain.model.*
@@ -1220,10 +1221,14 @@ fun TerminalQuickSwitchBottomSheet(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Quick Terminal Configuration",
+                    text = "Quick Terminal Config",
                     style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.weight(1f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
+                Spacer(modifier = Modifier.width(8.dp))
                 TextButton(onClick = {
                     onDismiss()
                     onOpenFullSettings()
@@ -1378,7 +1383,7 @@ fun TvrConfigurationDialog(
                     FilterChip(
                         selected = selectedMode == TvrMode.AUTOMATIC,
                         onClick = { selectedMode = TvrMode.AUTOMATIC },
-                        label = { Text("Auto (TRM Engine)") },
+                        label = { Text("Auto (TRM)") },
                         modifier = Modifier.weight(1f)
                     )
                     FilterChip(
@@ -1491,7 +1496,8 @@ fun TvrConfigurationDialog(
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
                                 text = label,
-                                style = MaterialTheme.typography.bodySmall
+                                style = MaterialTheme.typography.bodySmall,
+                                modifier = Modifier.weight(1f)
                             )
                         }
                     }
@@ -1571,7 +1577,7 @@ fun GenAcPolicyDialog(
                                 onClick = { selectedMode = mode }
                             )
                             Spacer(modifier = Modifier.width(8.dp))
-                            Column {
+                            Column(modifier = Modifier.weight(1f)) {
                                 Text(
                                     text = mode.displayName,
                                     style = MaterialTheme.typography.bodyMedium,

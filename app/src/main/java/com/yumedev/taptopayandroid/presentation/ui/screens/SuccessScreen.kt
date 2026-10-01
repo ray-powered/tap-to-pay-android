@@ -31,6 +31,7 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.yumedev.taptopayandroid.domain.model.*
@@ -456,7 +457,7 @@ fun SuccessScreen(
 
                     PosReceiptRow(
                         label = "ENTRY METHOD",
-                        value = "NFC CONTACTLESS (CLSS)"
+                        value = "NFC CONTACTLESS"
                     )
 
                     PosReceiptRow(
@@ -480,8 +481,14 @@ fun SuccessScreen(
 
                     // Verification & Cryptogram Details
                     PosReceiptRow(
-                        label = "CVM VERIFICATION",
-                        value = analysis.cvmTitle.uppercase(),
+                        label = "CVM",
+                        value = when {
+                            analysis.requiresScreenCheck -> "SEE PHONE"
+                            analysis.cvmRequirement == CvmRequirement.CONSUMER_DEVICE_CVM_PERFORMED -> "ON-DEVICE CDCVM"
+                            analysis.cvmRequirement == CvmRequirement.ONLINE_PIN_REQUIRED -> "ONLINE PIN"
+                            analysis.cvmRequirement == CvmRequirement.SIGNATURE_REQUIRED -> "SIGNATURE"
+                            else -> "NO CVM"
+                        },
                         isBold = true,
                         valueColor = if (analysis.requiresScreenCheck) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.onSurface
                     )
@@ -489,12 +496,12 @@ fun SuccessScreen(
                     PosReceiptRow(
                         label = "AUTH MODE",
                         value = when (analysis.decision) {
-                            TransactionDecision.APPROVED_OFFLINE -> "OFFLINE (LOCAL CHIP)"
-                            TransactionDecision.ONLINE_AUTHORIZATION_REQUIRED -> "ONLINE (ISSUER HOST)"
-                            TransactionDecision.SEE_PHONE_CDCVM -> "DEVICE CVM PENDING"
-                            TransactionDecision.DECLINED_BY_CARD -> "DECLINED (CARD CHIP)"
-                            TransactionDecision.SWITCH_INTERFACE_CONTACT -> "CONTACT INTERFACE"
-                            else -> "CONTACTLESS EMV"
+                            TransactionDecision.APPROVED_OFFLINE -> "OFFLINE (CHIP)"
+                            TransactionDecision.ONLINE_AUTHORIZATION_REQUIRED -> "ONLINE (HOST)"
+                            TransactionDecision.SEE_PHONE_CDCVM -> "SEE PHONE"
+                            TransactionDecision.DECLINED_BY_CARD -> "DECLINED"
+                            TransactionDecision.SWITCH_INTERFACE_CONTACT -> "USE CHIP"
+                            else -> "CONTACTLESS"
                         },
                         isBold = true,
                         valueColor = when (analysis.decision) {
@@ -512,7 +519,7 @@ fun SuccessScreen(
                             TransactionDecision.ONLINE_AUTHORIZATION_REQUIRED -> "ARQC"
                             else -> analysis.cid?.cryptogramType?.label ?: "AC"
                         }
-                        val cryptVal = cryptogramTag?.value?.take(16) ?: ""
+                        val cryptVal = cryptogramTag?.value?.take(10) ?: ""
                         PosReceiptRow(
                             label = "CRYPTOGRAM ($cryptType)",
                             value = if (cryptVal.isNotEmpty()) "$cryptVal..." else cryptType,
@@ -521,10 +528,10 @@ fun SuccessScreen(
                     }
 
                     PosReceiptRow(
-                        label = "RESPONSE CODE",
+                        label = "RESP CODE",
                         value = when (analysis.decision) {
-                            TransactionDecision.APPROVED_OFFLINE -> "Y1 (OFFLINE APPROVED)"
-                            TransactionDecision.ONLINE_AUTHORIZATION_REQUIRED -> "00 (ONLINE APPROVED)"
+                            TransactionDecision.APPROVED_OFFLINE -> "Y1 (OFFLINE)"
+                            TransactionDecision.ONLINE_AUTHORIZATION_REQUIRED -> "00 (ONLINE)"
                             TransactionDecision.SEE_PHONE_CDCVM -> "69 86 (SEE PHONE)"
                             TransactionDecision.DECLINED_BY_CARD -> "05 (DECLINED)"
                             TransactionDecision.SWITCH_INTERFACE_CONTACT -> "69 84 (USE CHIP)"
@@ -542,7 +549,7 @@ fun SuccessScreen(
                         )
                         PosReceiptRow(
                             label = "HOST ROUTING",
-                            value = if (analysis.decision == TransactionDecision.APPROVED_OFFLINE) "LOCAL OFFLINE (NO HOST)" else "ONLINE ISSUER HOST",
+                            value = if (analysis.decision == TransactionDecision.APPROVED_OFFLINE) "OFFLINE (LOCAL)" else "ONLINE (HOST)",
                             isMonospace = true
                         )
                     }
@@ -768,15 +775,21 @@ private fun PosReceiptRow(
             text = label,
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f)
         )
+        Spacer(modifier = Modifier.width(8.dp))
         Text(
             text = value,
             style = MaterialTheme.typography.bodySmall,
             fontWeight = if (isBold) FontWeight.Bold else FontWeight.Normal,
             fontFamily = if (isMonospace) FontFamily.Monospace else FontFamily.Default,
             color = valueColor,
-            textAlign = TextAlign.End
+            textAlign = TextAlign.End,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1.3f, fill = false)
         )
     }
 }

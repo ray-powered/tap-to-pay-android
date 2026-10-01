@@ -272,7 +272,6 @@ fun SettingsScreen(
                     icon = Icons.Outlined.Code,
                     title = "Terminal Transaction Qualifiers (TTQ)",
                     subtitle = "Tag 9F66: ${terminalConfig.formattedTtq} (Tap to configure)",
-                    endText = terminalConfig.formattedTtq,
                     onClick = { showTtqDialog = true }
                 )
                 HorizontalDivider(
@@ -283,7 +282,6 @@ fun SettingsScreen(
                     icon = Icons.Outlined.Splitscreen,
                     title = "Terminal Capabilities",
                     subtitle = "Tag 9F33: ${terminalConfig.formattedTerminalCapabilities} · Chip / Magstripe / CVM",
-                    endText = terminalConfig.formattedTerminalCapabilities,
                     onClick = { showCapabilitiesDialog = true }
                 )
                 HorizontalDivider(
@@ -308,7 +306,6 @@ fun SettingsScreen(
                         "Auto TRM · Floor Limit: ${terminalConfig.formattedFloorLimit}"
                     else
                         "Manual · Tag 95: ${terminalConfig.formattedManualTvr}",
-                    endText = if (terminalConfig.tvrMode == com.yumedev.taptopayandroid.domain.model.TvrMode.AUTOMATIC) "Auto" else "Manual",
                     onClick = { showTvrDialog = true }
                 )
                 HorizontalDivider(
@@ -319,23 +316,19 @@ fun SettingsScreen(
                     icon = Icons.Outlined.Splitscreen,
                     title = "GENERATE AC Policy",
                     subtitle = "Request ${terminalConfig.genAcRequestMode.displayName}",
-                    endText = terminalConfig.genAcRequestMode.name.substringAfter("FORCE_").ifEmpty { "Auto" },
                     onClick = { showGenAcDialog = true }
                 )
                 HorizontalDivider(
                     modifier = Modifier.padding(start = 56.dp),
                     color = MaterialTheme.colorScheme.outlineVariant
                 )
-                SettingsItem(
+                SettingsItemSwitch(
                     icon = Icons.Outlined.Info,
                     title = "Strict Online Auth Display",
-                    subtitle = "Show 'Online Authorization Required' instead of 'Approved Online' when ARQC is returned"
-                ) {
-                    Switch(
-                        checked = terminalConfig.strictOnlineAuthDisplay,
-                        onCheckedChange = { viewModel.updateStrictOnlineAuthDisplay(it) }
-                    )
-                }
+                    subtitle = "Show 'Online Authorization Required' instead of 'Approved Online' when ARQC is returned",
+                    checked = terminalConfig.strictOnlineAuthDisplay,
+                    onCheckedChange = { viewModel.updateStrictOnlineAuthDisplay(it) }
+                )
                 HorizontalDivider(
                     modifier = Modifier.padding(start = 56.dp),
                     color = MaterialTheme.colorScheme.outlineVariant
@@ -813,7 +806,7 @@ private fun ThemeOption(
                 horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                if (icon != null && isSelected) {
+                if (icon != null) {
                     Icon(
                         imageVector = icon,
                         contentDescription = null,
@@ -882,13 +875,17 @@ private fun PosLedModeSelector(
                         text = "EMV 4-Green",
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = if (isEmv) FontWeight.Bold else FontWeight.Medium,
-                        color = if (isEmv) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
+                        color = if (isEmv) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                     Text(
                         text = "EMV Book B Classic",
                         style = MaterialTheme.typography.labelSmall,
                         fontSize = 10.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
             }
@@ -928,13 +925,17 @@ private fun PosLedModeSelector(
                         text = "UnionPay 4-Color",
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = if (isUpay) FontWeight.Bold else FontWeight.Medium,
-                        color = if (isUpay) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
+                        color = if (isUpay) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                     Text(
-                        text = "PBOC / China UnionPay",
+                        text = "PBOC / UnionPay",
                         style = MaterialTheme.typography.labelSmall,
                         fontSize = 10.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
             }
