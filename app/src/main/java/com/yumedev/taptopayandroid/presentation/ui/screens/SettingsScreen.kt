@@ -97,6 +97,8 @@ fun SettingsScreen(
     var showCapabilitiesDialog by remember { mutableStateOf(false) }
     var showTerminalTypeDialog by remember { mutableStateOf(false) }
     var showMerchantDialog by remember { mutableStateOf(false) }
+    var showTvrDialog by remember { mutableStateOf(false) }
+    var showGenAcDialog by remember { mutableStateOf(false) }
 
     val selectedTheme = when (themeMode) {
         PreferencesManager.THEME_LIGHT -> ThemeOption.LIGHT
@@ -189,6 +191,30 @@ fun SettingsScreen(
         )
     }
 
+    if (showTvrDialog) {
+        com.yumedev.taptopayandroid.presentation.ui.components.TvrConfigurationDialog(
+            currentConfig = terminalConfig,
+            onDismiss = { showTvrDialog = false },
+            onConfirm = { mode, manualTvr, floorLimit ->
+                viewModel.updateTvrMode(mode)
+                viewModel.updateManualTvr(manualTvr)
+                viewModel.updateFloorLimit(floorLimit)
+                showTvrDialog = false
+            }
+        )
+    }
+
+    if (showGenAcDialog) {
+        com.yumedev.taptopayandroid.presentation.ui.components.GenAcPolicyDialog(
+            currentMode = terminalConfig.genAcRequestMode,
+            onDismiss = { showGenAcDialog = false },
+            onConfirm = { newMode ->
+                viewModel.updateGenAcMode(newMode)
+                showGenAcDialog = false
+            }
+        )
+    }
+
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
@@ -271,6 +297,45 @@ fun SettingsScreen(
                     endText = terminalConfig.terminalTypeHex,
                     onClick = { showTerminalTypeDialog = true }
                 )
+                HorizontalDivider(
+                    modifier = Modifier.padding(start = 56.dp),
+                    color = MaterialTheme.colorScheme.outlineVariant
+                )
+                SettingsItemNavigable(
+                    icon = Icons.Outlined.Code,
+                    title = "Terminal Verification Results (TVR)",
+                    subtitle = if (terminalConfig.tvrMode == com.yumedev.taptopayandroid.domain.model.TvrMode.AUTOMATIC)
+                        "Auto TRM · Floor Limit: ${terminalConfig.formattedFloorLimit}"
+                    else
+                        "Manual · Tag 95: ${terminalConfig.formattedManualTvr}",
+                    endText = if (terminalConfig.tvrMode == com.yumedev.taptopayandroid.domain.model.TvrMode.AUTOMATIC) "Auto" else "Manual",
+                    onClick = { showTvrDialog = true }
+                )
+                HorizontalDivider(
+                    modifier = Modifier.padding(start = 56.dp),
+                    color = MaterialTheme.colorScheme.outlineVariant
+                )
+                SettingsItemNavigable(
+                    icon = Icons.Outlined.Splitscreen,
+                    title = "GENERATE AC Policy",
+                    subtitle = "Request ${terminalConfig.genAcRequestMode.displayName}",
+                    endText = terminalConfig.genAcRequestMode.name.substringAfter("FORCE_").ifEmpty { "Auto" },
+                    onClick = { showGenAcDialog = true }
+                )
+                HorizontalDivider(
+                    modifier = Modifier.padding(start = 56.dp),
+                    color = MaterialTheme.colorScheme.outlineVariant
+                )
+                SettingsItem(
+                    icon = Icons.Outlined.Info,
+                    title = "Strict Online Auth Display",
+                    subtitle = "Show 'Online Authorization Required' instead of 'Approved Online' when ARQC is returned"
+                ) {
+                    Switch(
+                        checked = terminalConfig.strictOnlineAuthDisplay,
+                        onCheckedChange = { viewModel.updateStrictOnlineAuthDisplay(it) }
+                    )
+                }
                 HorizontalDivider(
                     modifier = Modifier.padding(start = 56.dp),
                     color = MaterialTheme.colorScheme.outlineVariant

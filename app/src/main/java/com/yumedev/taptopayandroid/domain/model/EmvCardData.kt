@@ -9,9 +9,11 @@ data class EmvCardData(
     val cardholderData: CardholderData,
     val apduCommands: List<ApduCommand> = emptyList(),
     val additionalTags: Map<String, EmvTag> = emptyMap(),
+    val terminalConfig: TerminalConfig? = null,
     val transactionAnalysis: TransactionAnalysisResult = TransactionResponseDecoder.analyzeTransaction(
         tags = additionalTags,
-        apduCommands = apduCommands
+        apduCommands = apduCommands,
+        strictOnlineAuthDisplay = terminalConfig?.strictOnlineAuthDisplay ?: false
     )
 ) {
     // Convenience property to get card type

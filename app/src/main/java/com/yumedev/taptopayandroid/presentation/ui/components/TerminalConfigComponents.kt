@@ -1309,3 +1309,295 @@ fun TerminalQuickSwitchBottomSheet(
         }
     }
 }
+
+/**
+ * TVR (Terminal Verification Results, Tag 95) & Terminal Risk Management Configuration Dialog
+ */
+@Composable
+fun TvrConfigurationDialog(
+    currentConfig: TerminalConfig,
+    onDismiss: () -> Unit,
+    onConfirm: (mode: TvrMode, manualTvrHex: String, floorLimitCents: Long) -> Unit
+) {
+    var selectedMode by remember { mutableStateOf(currentConfig.tvrMode) }
+    var manualTvr by remember { mutableStateOf(currentConfig.manualTvrHex) }
+    var floorLimitText by remember { mutableStateOf("%.2f".format(currentConfig.floorLimit / 100.0)) }
+
+    fun isBitSet(byteIdx: Int, bitMask: Int): Boolean {
+        val clean = manualTvr.replace(" ", "")
+        val bytes = ByteArray(5)
+        for (i in 0 until 5) {
+            val hexPair = if (i * 2 + 2 <= clean.length) clean.substring(i * 2, i * 2 + 2) else "00"
+            bytes[i] = hexPair.toIntOrNull(16)?.toByte() ?: 0
+        }
+        return (bytes[byteIdx].toInt() and bitMask) != 0
+    }
+
+    fun toggleBit(byteIdx: Int, bitMask: Int, enabled: Boolean) {
+        val clean = manualTvr.replace(" ", "")
+        val bytes = ByteArray(5)
+        for (i in 0 until 5) {
+            val hexPair = if (i * 2 + 2 <= clean.length) clean.substring(i * 2, i * 2 + 2) else "00"
+            bytes[i] = hexPair.toIntOrNull(16)?.toByte() ?: 0
+        }
+        val current = bytes[byteIdx].toInt() and 0xFF
+        val updated = if (enabled) current or bitMask else current and bitMask.inv()
+        bytes[byteIdx] = updated.toByte()
+        manualTvr = bytes.joinToString("") { "%02X".format(it) }
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Column {
+                Text(
+                    text = "Terminal Verification Results (TVR)",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = "Tag 95 (5 Bytes) • EMV Book 3 Risk Engine",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+        },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 480.dp)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                // Mode Selector
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    FilterChip(
+                        selected = selectedMode == TvrMode.AUTOMATIC,
+                        onClick = { selectedMode = TvrMode.AUTOMATIC },
+                        label = { Text("Auto (TRM Engine)") },
+                        modifier = Modifier.weight(1f)
+                    )
+                    FilterChip(
+                        selected = selectedMode == TvrMode.MANUAL,
+                        onClick = { selectedMode = TvrMode.MANUAL },
+                        label = { Text("Manual TVR") },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+
+                if (selectedMode == TvrMode.AUTOMATIC) {
+                    // Automatic TRM Configuration
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                        )
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text(
+                                text = "Terminal Floor Limit (Tag 9F1B)",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Text(
+                                text = "Transactions exceeding this floor limit automatically trigger TVR Byte 4 Bit 8 ('Transaction exceeds floor limit') to request online authorization.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            OutlinedTextField(
+                                value = floorLimitText,
+                                onValueChange = { floorLimitText = it },
+                                label = { Text("Floor Limit Amount (${currentConfig.currencySymbol})") },
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                                singleLine = true,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+                    }
+                } else {
+                    // Manual TVR Configuration
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                        )
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text(
+                                text = "TVR Raw Value (10 Hex Characters)",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            OutlinedTextField(
+                                value = manualTvr,
+                                onValueChange = { input ->
+                                    val filtered = input.filter { it.isDigit() || it.uppercaseChar() in 'A'..'F' }.take(10).uppercase()
+                                    manualTvr = filtered
+                                },
+                                label = { Text("TVR Hex (Tag 95)") },
+                                placeholder = { Text("0000000000") },
+                                singleLine = true,
+                                modifier = Modifier.fillMaxWidth(),
+                                textStyle = MaterialTheme.typography.bodyLarge.copy(fontFamily = FontFamily.Monospace)
+                            )
+                        }
+                    }
+
+                    Text(
+                        text = "EMV Book 3 Verification Bit Toggles",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+
+                    // Key TVR Bits
+                    val bitOptions = listOf(
+                        Triple(0, 0x80, "Byte 1 Bit 8: Offline data authentication not performed"),
+                        Triple(0, 0x10, "Byte 1 Bit 5: Card on terminal exception file"),
+                        Triple(0, 0x08, "Byte 1 Bit 4: DDA failed"),
+                        Triple(0, 0x04, "Byte 1 Bit 3: CDA failed"),
+                        Triple(1, 0x40, "Byte 2 Bit 7: Expired application"),
+                        Triple(1, 0x20, "Byte 2 Bit 6: Application not yet effective"),
+                        Triple(2, 0x80, "Byte 3 Bit 8: Cardholder verification not successful"),
+                        Triple(2, 0x20, "Byte 3 Bit 6: PIN try limit exceeded"),
+                        Triple(3, 0x80, "Byte 4 Bit 8: Transaction exceeds floor limit"),
+                        Triple(3, 0x10, "Byte 4 Bit 5: Transaction selected randomly for online"),
+                        Triple(3, 0x08, "Byte 4 Bit 4: Merchant forced transaction online")
+                    )
+
+                    bitOptions.forEach { (byteIdx, bitMask, label) ->
+                        val checked = isBitSet(byteIdx, bitMask)
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { toggleBit(byteIdx, bitMask, !checked) }
+                                .padding(vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Checkbox(
+                                checked = checked,
+                                onCheckedChange = { toggleBit(byteIdx, bitMask, it) }
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = label,
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    val limitCents = ((floorLimitText.toDoubleOrNull() ?: 100.0) * 100).toLong().coerceAtLeast(0L)
+                    val cleanTvr = manualTvr.padEnd(10, '0').take(10)
+                    onConfirm(selectedMode, cleanTvr, limitCents)
+                }
+            ) {
+                Text("Apply")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
+}
+
+/**
+ * GENERATE AC Request Policy Dialog
+ */
+@Composable
+fun GenAcPolicyDialog(
+    currentMode: GenAcRequestMode,
+    onDismiss: () -> Unit,
+    onConfirm: (newMode: GenAcRequestMode) -> Unit
+) {
+    var selectedMode by remember { mutableStateOf(currentMode) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Column {
+                Text(
+                    text = "GENERATE AC Policy",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = "EMV Book 3 Section 6.5.5 P1 Reference Parameter",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+        },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                GenAcRequestMode.values().forEach { mode ->
+                    val isSelected = selectedMode == mode
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { selectedMode = mode },
+                        shape = RoundedCornerShape(10.dp),
+                        color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(
+                                selected = isSelected,
+                                onClick = { selectedMode = mode }
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Column {
+                                Text(
+                                    text = mode.displayName,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                                Text(
+                                    text = mode.description,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(onClick = { onConfirm(selectedMode) }) {
+                Text("Apply")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
+}
+

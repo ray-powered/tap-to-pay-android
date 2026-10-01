@@ -355,16 +355,56 @@ class NfcCardReader @Inject constructor(
                             if (cdolData.isNotEmpty() && cdolData.size <= 255) {
                                 SecureLogger.d(TAG) { "Constructed CDOL1 data (${cdolData.size}B): ${cdolData.toHexString()}" }
 
-                                // CLA: 80, INS: AE (GENERATE AC), P1: 80 (Request ARQC for online auth), P2: 00
+                                val tvr = calculateTvr(amountCents, aipBytes, config)
+                                val tsi = calculateTsi(aipBytes, config)
+
+                                // Synthesize Tag 95 (TVR) and Tag 9B (TSI) records so they appear in allRecords and additionalTags
+                                allRecords.add(byteArrayOf(0x95.toByte(), 0x05.toByte()) + tvr)
+                                allRecords.add(byteArrayOf(0x9B.toByte(), 0x02.toByte()) + tsi)
+
+                                val aipByte1 = if (aipBytes != null && aipBytes.isNotEmpty()) aipBytes[0].toInt() and 0xFF else 0
+                                val cdaRequested = (aipByte1 and 0x01) != 0 && config.capCdaSupported
+
+                                val requestedCryptoType = when (config.genAcRequestMode) {
+                                    GenAcRequestMode.FORCE_ARQC -> 0x80
+                                    GenAcRequestMode.FORCE_TC -> 0x40
+                                    GenAcRequestMode.FORCE_AAC -> 0x00
+                                    GenAcRequestMode.AUTO_TAA -> {
+                                        // EMV Book 3 Section 10.5 Terminal Action Analysis (TAA):
+                                        val isDenial = (tvr[0].toInt() and 0x18) != 0 || (tvr[1].toInt() and 0x40) != 0
+                                        if (isDenial) {
+                                            0x00 // AAC
+                                        } else {
+                                            val exceedsFloor = (tvr[3].toInt() and 0x80) != 0
+                                            val isOfflineOnly = config.capOfflineOnly
+                                            if (!isOfflineOnly && (exceedsFloor || !config.ttqReaderOfflineOnly)) {
+                                                0x80 // ARQC
+                                            } else if (isOfflineOnly && !exceedsFloor) {
+                                                0x40 // TC
+                                            } else {
+                                                if (isOfflineOnly && exceedsFloor) 0x00 else 0x80
+                                            }
+                                        }
+                                    }
+                                }
+
+                                val p1Byte = (requestedCryptoType or (if (cdaRequested) 0x10 else 0x00)).toByte()
+                                val cryptoLabel = when (requestedCryptoType) {
+                                    0x80 -> "ARQC"
+                                    0x40 -> "TC"
+                                    else -> "AAC"
+                                } + if (cdaRequested) "+CDA" else ""
+
+                                // CLA: 80, INS: AE (GENERATE AC), P1: p1Byte, P2: 00
                                 val genAcCommand = byteArrayOf(
                                     0x80.toByte(),
                                     0xAE.toByte(),
-                                    0x80.toByte(), // Request ARQC
+                                    p1Byte,
                                     0x00.toByte(),
                                     cdolData.size.toByte()
                                 ) + cdolData + byteArrayOf(0x00.toByte())
 
-                                notifyApdu("GENERATE AC")
+                                notifyApdu("GENERATE AC ($cryptoLabel)")
                                 val genAcResponse = try {
                                     isoDep.transceive(genAcCommand)
                                 } catch (e: IOException) {
@@ -374,8 +414,8 @@ class NfcCardReader @Inject constructor(
 
                                 apduCommands.add(ApduCommand(
                                     sequence = commandSequence++,
-                                    name = "GENERATE AC (ARQC)",
-                                    description = "Request Application Cryptogram for transaction authorization",
+                                    name = "GENERATE AC ($cryptoLabel)",
+                                    description = "Request Application Cryptogram ($cryptoLabel) for transaction authorization",
                                     commandApdu = genAcCommand.toHexString(),
                                     responseApdu = genAcResponse.toHexString(),
                                     statusWord = getStatusWord(genAcResponse),
@@ -422,7 +462,8 @@ class NfcCardReader @Inject constructor(
                 transactionData = transactionData,
                 cardholderData = cardholderData,
                 apduCommands = apduCommands,
-                additionalTags = additionalTags
+                additionalTags = additionalTags,
+                terminalConfig = config
             )
 
             SecureLogger.d(TAG) { "Card read successfully with ${apduCommands.size} APDU exchanges" }
@@ -547,11 +588,22 @@ class NfcCardReader @Inject constructor(
                 // 9F15: Merchant Category Code (2 bytes BCD)
                 "9F15" -> parseHexBytes(terminalConfig.merchantCategoryCode, safeLength, byteArrayOf(0x54.toByte(), 0x11.toByte()))
 
-                // 95: Terminal Verification Results (TVR - 5 bytes 0x00)
-                "95" -> ByteArray(safeLength)
+                // 95: Terminal Verification Results (TVR - 5 bytes)
+                "95" -> calculateTvr(amountCents, aip, terminalConfig)
 
-                // 9B: Transaction Status Information (TSI - 2 bytes 0x00)
-                "9B" -> ByteArray(safeLength)
+                // 9B: Transaction Status Information (TSI - 2 bytes)
+                "9B" -> calculateTsi(aip, terminalConfig)
+
+                // 9F1B: Terminal Floor Limit (4 bytes binary)
+                "9F1B" -> {
+                    val fl = terminalConfig.floorLimit.coerceIn(0L, 0xFFFFFFFFL)
+                    byteArrayOf(
+                        ((fl shr 24) and 0xFF).toByte(),
+                        ((fl shr 16) and 0xFF).toByte(),
+                        ((fl shr 8) and 0xFF).toByte(),
+                        (fl and 0xFF).toByte()
+                    )
+                }
 
                 // 82: Application Interchange Profile (AIP)
                 "82" -> aip?.takeIf { it.size == safeLength } ?: ByteArray(safeLength)
@@ -587,6 +639,54 @@ class NfcCardReader @Inject constructor(
         }
 
         return output.toByteArray()
+    }
+
+    internal fun calculateTvr(
+        amountCents: Long?,
+        aip: ByteArray?,
+        terminalConfig: TerminalConfig
+    ): ByteArray {
+        if (terminalConfig.tvrMode == TvrMode.MANUAL) {
+            return terminalConfig.getManualTvrBytes()
+        }
+
+        // Automatic TRM mode according to EMV Book 3 Annex C.5
+        val tvr = ByteArray(5)
+        val amt = amountCents ?: 0L
+
+        // Byte 1:
+        // Bit 8 (0x80): Offline data authentication was not performed
+        val aipByte1 = if (aip != null && aip.isNotEmpty()) aip[0].toInt() and 0xFF else 0
+        val cardOdaSupported = (aipByte1 and 0x61) != 0 // SDA (0x40), DDA (0x20), CDA (0x01)
+        if (!cardOdaSupported) {
+            tvr[0] = (tvr[0].toInt() or 0x80).toByte()
+        }
+
+        // Byte 4:
+        // Bit 8 (0x80): Transaction exceeds floor limit
+        if (amt > terminalConfig.floorLimit) {
+            tvr[3] = (tvr[3].toInt() or 0x80).toByte()
+        }
+
+        return tvr
+    }
+
+    internal fun calculateTsi(
+        aip: ByteArray?,
+        terminalConfig: TerminalConfig
+    ): ByteArray {
+        val tsi = ByteArray(2)
+        // Byte 1:
+        // Bit 4 (0x08): Terminal risk management was performed
+        tsi[0] = (tsi[0].toInt() or 0x08).toByte()
+
+        val aipByte1 = if (aip != null && aip.isNotEmpty()) aip[0].toInt() and 0xFF else 0
+        val cardOdaSupported = (aipByte1 and 0x61) != 0
+        if (cardOdaSupported) {
+            // Bit 8 (0x80): Offline data authentication was performed
+            tsi[0] = (tsi[0].toInt() or 0x80).toByte()
+        }
+        return tsi
     }
 
     private fun formatBcdAmount(cents: Long, targetLength: Int = 6): ByteArray {

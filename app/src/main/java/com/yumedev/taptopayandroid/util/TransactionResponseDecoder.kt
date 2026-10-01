@@ -15,7 +15,8 @@ object TransactionResponseDecoder {
      */
     fun analyzeTransaction(
         tags: Map<String, EmvTag>,
-        apduCommands: List<ApduCommand>
+        apduCommands: List<ApduCommand>,
+        strictOnlineAuthDisplay: Boolean = false
     ): TransactionAnalysisResult {
         val cid = tags["9F27"]?.value?.let { decodeCid(it) }
         val ctq = tags["9F6C"]?.value?.let { decodeCtq(it) }
@@ -193,19 +194,35 @@ object TransactionResponseDecoder {
             cid?.cryptogramType == CryptogramType.ARQC || (cid == null && tags.containsKey("9F26")) -> {
                 val cryptoVal = cid?.rawValue ?: tags["9F26"]?.value ?: ""
                 decision = TransactionDecision.ONLINE_AUTHORIZATION_REQUIRED
-                decisionTitle = "Approved Online (ARQC)"
-                decisionDescription = "Card generated an Authorisation Request Cryptogram (ARQC). Transaction was routed online and approved by the issuer host."
-                isApproved = true
-                isDeclined = false
-                isOnlineRequired = false
-                isSwitchInterfaceRequired = false
-                highlights.add(
-                    AnalysisHighlight(
-                        title = "Online Approved (ARQC)",
-                        description = "Cryptogram ARQC ($cryptoVal) generated and authorized online by host.",
-                        type = HighlightType.SUCCESS
+                if (strictOnlineAuthDisplay) {
+                    decisionTitle = "Online Authorization Required (ARQC)"
+                    decisionDescription = "Card generated an Authorisation Request Cryptogram (ARQC). Transaction must be sent online to the issuer host for authorization."
+                    isApproved = false
+                    isDeclined = false
+                    isOnlineRequired = true
+                    isSwitchInterfaceRequired = false
+                    highlights.add(
+                        AnalysisHighlight(
+                            title = "Online Authorization Required",
+                            description = "Cryptogram ARQC ($cryptoVal) generated. Awaiting issuer host authorization.",
+                            type = HighlightType.INFO
+                        )
                     )
-                )
+                } else {
+                    decisionTitle = "Approved Online (ARQC)"
+                    decisionDescription = "Card generated an Authorisation Request Cryptogram (ARQC). Transaction was routed online and approved by the issuer host."
+                    isApproved = true
+                    isDeclined = false
+                    isOnlineRequired = false
+                    isSwitchInterfaceRequired = false
+                    highlights.add(
+                        AnalysisHighlight(
+                            title = "Online Approved (ARQC)",
+                            description = "Cryptogram ARQC ($cryptoVal) generated and authorized online by host.",
+                            type = HighlightType.SUCCESS
+                        )
+                    )
+                }
             }
             cid?.cryptogramType == CryptogramType.AAC -> {
                 decision = TransactionDecision.DECLINED_BY_CARD

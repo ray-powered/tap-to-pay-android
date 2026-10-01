@@ -95,4 +95,43 @@ class TerminalConfigTest {
         val config = TerminalConfig(ttqHex = "76204000")
         assertThat(config.formattedTtq).isEqualTo("76 20 40 00")
     }
+
+    @Test
+    fun `TRM and TVR configuration default values are correct`() {
+        val config = TerminalConfig()
+        assertThat(config.floorLimit).isEqualTo(10000L)
+        assertThat(config.formattedFloorLimit).isEqualTo("$100.00")
+        assertThat(config.tvrMode).isEqualTo(TvrMode.AUTOMATIC)
+        assertThat(config.manualTvrHex).isEqualTo("0000000000")
+        assertThat(config.formattedManualTvr).isEqualTo("00 00 00 00 00")
+        assertThat(config.genAcRequestMode).isEqualTo(GenAcRequestMode.AUTO_TAA)
+        assertThat(config.strictOnlineAuthDisplay).isFalse()
+        assertThat(config.capCdaSupported).isTrue()
+        assertThat(config.capOfflineOnly).isFalse()
+    }
+
+    @Test
+    fun `manual TVR bit manipulation works correctly`() {
+        var config = TerminalConfig(manualTvrHex = "0000000000")
+
+        // Byte 0, Bit 8 (0x80): Offline data auth not performed
+        assertThat(config.isManualTvrBitSet(0, 0x80)).isFalse()
+        config = config.withManualTvrBit(0, 0x80, true)
+        assertThat(config.isManualTvrBitSet(0, 0x80)).isTrue()
+        assertThat(config.manualTvrHex).isEqualTo("8000000000")
+
+        // Byte 3, Bit 8 (0x80): Transaction exceeds floor limit
+        assertThat(config.isManualTvrBitSet(3, 0x80)).isFalse()
+        config = config.withManualTvrBit(3, 0x80, true)
+        assertThat(config.isManualTvrBitSet(3, 0x80)).isTrue()
+        assertThat(config.manualTvrHex).isEqualTo("8000008000")
+
+        // Clear Byte 0, Bit 8
+        config = config.withManualTvrBit(0, 0x80, false)
+        assertThat(config.isManualTvrBitSet(0, 0x80)).isFalse()
+        assertThat(config.manualTvrHex).isEqualTo("0000008000")
+
+        val bytes = config.getManualTvrBytes()
+        assertThat(bytes).isEqualTo(byteArrayOf(0x00, 0x00, 0x00, 0x80.toByte(), 0x00))
+    }
 }

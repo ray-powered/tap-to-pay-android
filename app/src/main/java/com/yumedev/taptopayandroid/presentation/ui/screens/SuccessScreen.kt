@@ -149,16 +149,19 @@ fun SuccessScreen(
             badgeBgColor = Color(0xFF2E7D32),
             badgeTextColor = Color(0xFFA5D6A7)
         )
-        TransactionDecision.ONLINE_AUTHORIZATION_REQUIRED -> PosStatusConfig(
-            bgColor = Color(0xFF0D47A1), // POS Deep Host Royal Blue
-            contentColor = Color(0xFFE3F2FD),
-            title = "ONLINE APPROVED",
-            subtitle = "ONLINE AUTHORIZED • ARQC HOST APPROVED",
-            icon = Icons.Default.CheckCircle,
-            badgeText = "ONLINE · ARQC",
-            badgeBgColor = Color(0xFF1565C0),
-            badgeTextColor = Color(0xFF90CAF9)
-        )
+        TransactionDecision.ONLINE_AUTHORIZATION_REQUIRED -> {
+            val isStrict = analysis.isOnlineRequired
+            PosStatusConfig(
+                bgColor = Color(0xFF0D47A1), // POS Deep Host Royal Blue
+                contentColor = Color(0xFFE3F2FD),
+                title = if (isStrict) "ONLINE AUTH REQUIRED" else "ONLINE APPROVED",
+                subtitle = if (isStrict) "ARQC GENERATED • FORWARD TO HOST GATEWAY" else "ONLINE AUTHORIZED • ARQC HOST APPROVED",
+                icon = Icons.Default.CheckCircle,
+                badgeText = if (isStrict) "ONLINE AUTH · ARQC" else "ONLINE · ARQC",
+                badgeBgColor = Color(0xFF1565C0),
+                badgeTextColor = Color(0xFF90CAF9)
+            )
+        }
         TransactionDecision.SEE_PHONE_CDCVM -> PosStatusConfig(
             bgColor = Color(0xFFE65100), // POS Warning Amber
             contentColor = Color(0xFFFFF3E0),

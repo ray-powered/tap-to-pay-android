@@ -3,6 +3,8 @@ package com.yumedev.taptopayandroid.presentation.viewmodel
 import androidx.arch.core.executor.testing.InstantTaskExecutorRule
 import com.google.common.truth.Truth.assertThat
 import com.yumedev.taptopayandroid.domain.model.DetailLevel
+import com.yumedev.taptopayandroid.domain.model.GenAcRequestMode
+import com.yumedev.taptopayandroid.domain.model.TvrMode
 import com.yumedev.taptopayandroid.domain.repository.PreferencesRepository
 import com.yumedev.taptopayandroid.domain.usecase.GetDetailLevelUseCase
 import com.yumedev.taptopayandroid.domain.usecase.GetSoundEnabledUseCase
@@ -306,5 +308,45 @@ class SettingsViewModelTest {
 
         assertThat(viewModel.terminalConfig.value.currencyCode).isEqualTo("0840")
         assertThat(viewModel.terminalConfig.value.transactionType).isEqualTo("00")
+    }
+
+    @Test
+    fun `updateFloorLimit updates floor limit`() {
+        viewModel.updateFloorLimit(25000L)
+        assertThat(viewModel.terminalConfig.value.floorLimit).isEqualTo(25000L)
+    }
+
+    @Test
+    fun `updateTvrMode updates tvr mode`() {
+        viewModel.updateTvrMode(TvrMode.MANUAL)
+        assertThat(viewModel.terminalConfig.value.tvrMode).isEqualTo(TvrMode.MANUAL)
+    }
+
+    @Test
+    fun `updateManualTvr updates manual tvr hex`() {
+        viewModel.updateManualTvr("8000408000")
+        assertThat(viewModel.terminalConfig.value.manualTvrHex).isEqualTo("8000408000")
+    }
+
+    @Test
+    fun `updateManualTvrBit toggles manual TVR bits`() {
+        viewModel.updateManualTvr("0000000000")
+        viewModel.updateManualTvrBit(3, 0x80, true)
+        assertThat(viewModel.terminalConfig.value.manualTvrHex).isEqualTo("0000008000")
+
+        viewModel.updateManualTvrBit(3, 0x80, false)
+        assertThat(viewModel.terminalConfig.value.manualTvrHex).isEqualTo("0000000000")
+    }
+
+    @Test
+    fun `updateGenAcMode updates GenAC mode`() {
+        viewModel.updateGenAcMode(GenAcRequestMode.FORCE_ARQC)
+        assertThat(viewModel.terminalConfig.value.genAcRequestMode).isEqualTo(GenAcRequestMode.FORCE_ARQC)
+    }
+
+    @Test
+    fun `updateStrictOnlineAuthDisplay updates strict mode boolean`() {
+        viewModel.updateStrictOnlineAuthDisplay(true)
+        assertThat(viewModel.terminalConfig.value.strictOnlineAuthDisplay).isTrue()
     }
 }

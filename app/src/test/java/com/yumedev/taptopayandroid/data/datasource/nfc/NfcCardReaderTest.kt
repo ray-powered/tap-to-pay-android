@@ -1,6 +1,8 @@
 package com.yumedev.taptopayandroid.data.datasource.nfc
 
 import com.yumedev.taptopayandroid.data.parser.EmvTagParser
+import com.yumedev.taptopayandroid.domain.model.TerminalConfig
+import com.yumedev.taptopayandroid.domain.model.TvrMode
 import com.yumedev.taptopayandroid.domain.usecase.ValidatePanUseCase
 import org.junit.Test
 import com.google.common.truth.Truth.assertThat
@@ -193,5 +195,83 @@ class NfcCardReaderTest {
         assertThat(data[4]).isEqualTo(0x20.toByte())
         // 9F66: 26 20 40 00
         assertThat(data[5]).isEqualTo(0x26.toByte())
+    }
+
+    @Test
+    fun `calculateTvr in automatic mode handles floor limit and ODA status`() {
+        val config = TerminalConfig(
+            tvrMode = TvrMode.AUTOMATIC,
+            floorLimit = 5000L // $50.00
+        )
+        // AIP with SDA (0x40)
+        val aipWithOda = byteArrayOf(0x40.toByte(), 0x00.toByte())
+        // AIP without ODA (e.g. 0x00)
+        val aipNoOda = byteArrayOf(0x00.toByte(), 0x00.toByte())
+
+        // 1. Transaction under floor limit with ODA: TVR all zeros
+        val tvrUnderLimit = reader.calculateTvr(amountCents = 2500L, aip = aipWithOda, terminalConfig = config)
+        assertThat(tvrUnderLimit).isEqualTo(byteArrayOf(0x00, 0x00, 0x00, 0x00, 0x00))
+
+        // 2. Transaction over floor limit ($60.00 > $50.00): Byte 3 Bit 8 (0x80) set
+        val tvrOverLimit = reader.calculateTvr(amountCents = 6000L, aip = aipWithOda, terminalConfig = config)
+        assertThat(tvrOverLimit).isEqualTo(byteArrayOf(0x00, 0x00, 0x00, 0x80.toByte(), 0x00))
+
+        // 3. Card without ODA: Byte 0 Bit 8 (0x80) set
+        val tvrNoOda = reader.calculateTvr(amountCents = 2500L, aip = aipNoOda, terminalConfig = config)
+        assertThat(tvrNoOda).isEqualTo(byteArrayOf(0x80.toByte(), 0x00, 0x00, 0x00, 0x00))
+
+        // 4. Over limit AND no ODA
+        val tvrBoth = reader.calculateTvr(amountCents = 6000L, aip = aipNoOda, terminalConfig = config)
+        assertThat(tvrBoth).isEqualTo(byteArrayOf(0x80.toByte(), 0x00, 0x00, 0x80.toByte(), 0x00))
+    }
+
+    @Test
+    fun `calculateTvr in manual mode returns configured manual TVR`() {
+        val manualConfig = TerminalConfig(
+            tvrMode = TvrMode.MANUAL,
+            manualTvrHex = "8000408000"
+        )
+        val tvr = reader.calculateTvr(amountCents = 1000L, aip = null, terminalConfig = manualConfig)
+        assertThat(tvr).isEqualTo(byteArrayOf(0x80.toByte(), 0x00, 0x40.toByte(), 0x80.toByte(), 0x00))
+    }
+
+    @Test
+    fun `calculateTsi sets TRM and ODA performed flags`() {
+        val config = TerminalConfig()
+        val aipWithOda = byteArrayOf(0x20.toByte(), 0x00.toByte()) // DDA supported
+        val aipNoOda = byteArrayOf(0x00.toByte(), 0x00.toByte())
+
+        // With ODA: TRM (0x08) + ODA (0x80) = 0x88
+        val tsiWithOda = reader.calculateTsi(aip = aipWithOda, terminalConfig = config)
+        assertThat(tsiWithOda).isEqualTo(byteArrayOf(0x88.toByte(), 0x00))
+
+        // Without ODA: TRM only = 0x08
+        val tsiNoOda = reader.calculateTsi(aip = aipNoOda, terminalConfig = config)
+        assertThat(tsiNoOda).isEqualTo(byteArrayOf(0x08.toByte(), 0x00))
+    }
+
+    @Test
+    fun `buildDolData encodes Tag 95 TVR, Tag 9B TSI, and Tag 9F1B Floor Limit`() {
+        val dolItems = listOf(
+            NfcCardReader.DolItem("95", 5),
+            NfcCardReader.DolItem("9B", 2),
+            NfcCardReader.DolItem("9F1B", 4)
+        )
+
+        val config = TerminalConfig(
+            floorLimit = 10000L, // 0x00002710
+            tvrMode = TvrMode.MANUAL,
+            manualTvrHex = "0000008000"
+        )
+
+        val data = reader.buildDolData(dolItems, amountCents = 15000L, terminalConfig = config)
+        assertThat(data).hasLength(11)
+
+        // Tag 95 (5 bytes)
+        assertThat(data.copyOfRange(0, 5)).isEqualTo(byteArrayOf(0x00, 0x00, 0x00, 0x80.toByte(), 0x00))
+        // Tag 9B (2 bytes) - TRM performed (0x08)
+        assertThat(data.copyOfRange(5, 7)).isEqualTo(byteArrayOf(0x08.toByte(), 0x00))
+        // Tag 9F1B (4 bytes binary): 10000 = 0x00002710
+        assertThat(data.copyOfRange(7, 11)).isEqualTo(byteArrayOf(0x00, 0x00, 0x27, 0x10))
     }
 }

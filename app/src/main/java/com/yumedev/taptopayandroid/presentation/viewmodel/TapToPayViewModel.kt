@@ -125,6 +125,8 @@ class TapToPayViewModel @Inject constructor(
                         emvCardData.transactionAnalysis.decision == TransactionDecision.SWITCH_INTERFACE_CONTACT
 
                     val isApproved = emvCardData.transactionAnalysis.isApproved
+                    val isOnlineAuth = emvCardData.transactionAnalysis.isOnlineRequired ||
+                        emvCardData.transactionAnalysis.decision == TransactionDecision.ONLINE_AUTHORIZATION_REQUIRED
 
                     when {
                         isSeePhone -> {
@@ -143,13 +145,13 @@ class TapToPayViewModel @Inject constructor(
                             playFailedSoundUseCase()
                             NfcState.Error("Card declined transaction: ${emvCardData.transactionAnalysis.decisionTitle}")
                         }
-                        !isApproved -> {
-                            playFailedSoundUseCase()
-                            NfcState.Error(emvCardData.transactionAnalysis.decisionTitle.ifEmpty { "Incomplete transaction: No cryptogram generated" })
-                        }
-                        else -> {
+                        isOnlineAuth || isApproved -> {
                             playSuccessSoundUseCase()
                             NfcState.Success(emvCardData)
+                        }
+                        else -> {
+                            playFailedSoundUseCase()
+                            NfcState.Error(emvCardData.transactionAnalysis.decisionTitle.ifEmpty { "Incomplete transaction: No cryptogram generated" })
                         }
                     }
                 },

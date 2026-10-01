@@ -5,6 +5,36 @@ enum class PosLedColorMode {
     UNIONPAY_COLOR // Standard 4-Color LEDs (Blue, Yellow, Green, Red)
 }
 
+enum class TvrMode(val displayName: String, val description: String) {
+    AUTOMATIC(
+        "Automatic (TRM Engine)",
+        "Dynamically sets TVR based on Floor Limit, ODA status, and card state"
+    ),
+    MANUAL(
+        "Manual (Custom TVR)",
+        "Manually configure TVR 5-byte hex value and individual verification bits"
+    )
+}
+
+enum class GenAcRequestMode(val displayName: String, val description: String) {
+    AUTO_TAA(
+        "Auto (TAA Decision)",
+        "Dynamically requests TC or ARQC based on floor limit, TVR, and terminal profile"
+    ),
+    FORCE_ARQC(
+        "Force ARQC (0x80 / 0x90)",
+        "Always request Authorisation Request Cryptogram for online authorization"
+    ),
+    FORCE_TC(
+        "Force TC (0x40 / 0x50)",
+        "Always request Transaction Certificate for offline authorization"
+    ),
+    FORCE_AAC(
+        "Force AAC (0x00 / 0x10)",
+        "Always request Application Authentication Cryptogram (Decline)"
+    )
+}
+
 /**
  * Configuration for POS Terminal and EMV transaction attributes.
  * Allows customizing currency, country, transaction type, TTQ, terminal capabilities,
@@ -48,7 +78,22 @@ data class TerminalConfig(
     val additionalTerminalCapabilitiesHex: String = "6000F0A001",
 
     // Contactless 4-LED Color Scheme (EMV Classic 4-Green vs. UnionPay 4-Color)
-    val ledColorMode: PosLedColorMode = PosLedColorMode.EMV_GREEN
+    val ledColorMode: PosLedColorMode = PosLedColorMode.EMV_GREEN,
+
+    // Terminal Floor Limit (Tag 9F1B - in minor units / cents, default: 10000 = $100.00 / ¥100.00)
+    val floorLimit: Long = 10000L,
+
+    // TVR Operating Mode (Tag 95 - Automatic TRM vs Manual TVR)
+    val tvrMode: TvrMode = TvrMode.AUTOMATIC,
+
+    // Manual TVR (Tag 95 - 5 bytes hex, e.g. 0000000000)
+    val manualTvrHex: String = "0000000000",
+
+    // GENERATE AC Request Policy
+    val genAcRequestMode: GenAcRequestMode = GenAcRequestMode.AUTO_TAA,
+
+    // Strict Online Authorization Display (If false, ARQC displays friendly "Approved Online"; if true, displays "Online Authorization Required")
+    val strictOnlineAuthDisplay: Boolean = false
 ) {
 
     // --- TTQ Bitwise Accessors (EMV Book B / VCPS Tag 9F66) ---
@@ -179,6 +224,38 @@ data class TerminalConfig(
     val capDda: Boolean get() = isTerminalCapabilityBitSet(2, 0x40)
     val capCardCapture: Boolean get() = isTerminalCapabilityBitSet(2, 0x20)
     val capCda: Boolean get() = isTerminalCapabilityBitSet(2, 0x08)
+    val capCdaSupported: Boolean get() = capCda
+
+    val capOfflineOnly: Boolean
+        get() = terminalTypeHex in listOf("21", "23", "11", "24") || ttqReaderOfflineOnly
+
+    // --- TVR Accessors and Mutators (Tag 95 - 5 bytes) ---
+    fun getManualTvrBytes(): ByteArray {
+        val clean = manualTvrHex.replace(" ", "")
+        val bytes = ByteArray(5)
+        for (i in 0 until 5) {
+            val hexPair = if (i * 2 + 2 <= clean.length) clean.substring(i * 2, i * 2 + 2) else "00"
+            bytes[i] = hexPair.toIntOrNull(16)?.toByte() ?: 0
+        }
+        return bytes
+    }
+
+    fun isManualTvrBitSet(byteIndex: Int, bitMask: Int): Boolean {
+        val bytes = getManualTvrBytes()
+        if (byteIndex !in 0..4) return false
+        return (bytes[byteIndex].toInt() and bitMask) != 0
+    }
+
+    fun withManualTvrBit(byteIndex: Int, bitMask: Int, enabled: Boolean): TerminalConfig {
+        val bytes = getManualTvrBytes()
+        if (byteIndex in 0..4) {
+            val current = bytes[byteIndex].toInt() and 0xFF
+            val updated = if (enabled) current or bitMask else current and bitMask.inv()
+            bytes[byteIndex] = updated.toByte()
+        }
+        val newHex = bytes.joinToString("") { "%02X".format(it) }
+        return copy(manualTvrHex = newHex)
+    }
 
     // --- Formatting Helpers ---
     val formattedTtq: String
@@ -186,6 +263,12 @@ data class TerminalConfig(
 
     val formattedTerminalCapabilities: String
         get() = terminalCapabilitiesHex.replace(" ", "").chunked(2).joinToString(" ")
+
+    val formattedManualTvr: String
+        get() = getManualTvrBytes().joinToString(" ") { "%02X".format(it) }
+
+    val formattedFloorLimit: String
+        get() = "$currencySymbol${"%.2f".format(floorLimit / 100.0)}"
 
     val currencyDisplayName: String
         get() {

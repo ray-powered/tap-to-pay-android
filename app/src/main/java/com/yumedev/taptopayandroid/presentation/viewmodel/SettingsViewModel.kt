@@ -118,4 +118,34 @@ class SettingsViewModel @Inject constructor(
         val updated = _terminalConfig.value.copy(ledColorMode = mode)
         updateTerminalConfig(updated)
     }
+
+    fun updateFloorLimit(limitCents: Long) {
+        val updated = _terminalConfig.value.copy(floorLimit = limitCents)
+        updateTerminalConfig(updated)
+    }
+
+    fun updateTvrMode(mode: com.yumedev.taptopayandroid.domain.model.TvrMode) {
+        val updated = _terminalConfig.value.copy(tvrMode = mode)
+        updateTerminalConfig(updated)
+    }
+
+    fun updateManualTvr(tvrHex: String) {
+        val updated = _terminalConfig.value.copy(manualTvrHex = tvrHex)
+        updateTerminalConfig(updated)
+    }
+
+    fun updateManualTvrBit(byteIndex: Int, bitMask: Int, enabled: Boolean) {
+        val updated = _terminalConfig.value.withManualTvrBit(byteIndex, bitMask, enabled)
+        updateTerminalConfig(updated)
+    }
+
+    fun updateGenAcMode(mode: com.yumedev.taptopayandroid.domain.model.GenAcRequestMode) {
+        val updated = _terminalConfig.value.copy(genAcRequestMode = mode)
+        updateTerminalConfig(updated)
+    }
+
+    fun updateStrictOnlineAuthDisplay(strict: Boolean) {
+        val updated = _terminalConfig.value.copy(strictOnlineAuthDisplay = strict)
+        updateTerminalConfig(updated)
+    }
 }
